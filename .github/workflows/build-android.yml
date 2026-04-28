@@ -92,16 +92,9 @@ jobs:
           mkdir -p android/build
           unzip -q "$TPL_DIR/android_source.zip" -d android/build
           # Mark template as properly installed (mimics editor's "Install Build Template").
-          # version.txt must contain Godot's full version string (incl. build hash) — partial
-          # match (e.g. "4.6.2.stable") is rejected with "no version info for it exists".
+          # Godot expects "X.Y.Z.stable" — NOT the full ".official.<hash>" suffix.
           touch android/build/.gdignore
-          GODOT_FULL_VERSION=$(./godot --version | head -1 | tr -d '\r\n')
-          echo "Detected Godot version: $GODOT_FULL_VERSION"
-          echo -n "$GODOT_FULL_VERSION" > android/build/version.txt
-          # Some Godot versions also check this path:
-          echo -n "$GODOT_FULL_VERSION" > android/.build_version
-          echo "--- android/ contents ---"
-          ls android/
+          echo -n "${GODOT_VERSION}.stable" > android/build/version.txt
           echo "--- android/build contents ---"
           ls android/build
           echo "--- version.txt ---"
