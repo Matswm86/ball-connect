@@ -16,6 +16,9 @@ Thumbs.db
 *.ipa
 build/
 
+# Godot Gradle source template (installed in CI from export templates)
+android/build/
+
 # Editor
 .vscode/
 .idea/

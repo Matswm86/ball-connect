@@ -85,6 +85,16 @@ jobs:
           echo "Wrote $SETTINGS_FILE"
           cat "$SETTINGS_FILE"
 
+      - name: Install Godot Gradle build template
+        run: |
+          set -e
+          TPL_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p android/build
+          unzip -q "$TPL_DIR/android_source.zip" -d android/build
+          ls android/build | head -20
+          # Mark template as installed so Godot accepts it
+          touch android/build/.gdignore
+
       - name: Pre-import project resources
         run: |
           ./godot --headless --import . || true
