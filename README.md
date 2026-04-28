@@ -1,6 +1,6 @@
 # Ball Connect
 
-A ball-connect puzzle game. **No ads, no IAP, no analytics, no tracking.**
+A ball-connect puzzle game. Simple and plain. NO ADS! NO BS! **No IAP, no analytics, no tracking.** Just a simple game... 
 
 Drag a line from a colored ball to its same-color partner. Lines cannot cross
 each other, cannot cross themselves, and cannot pass through other balls.
