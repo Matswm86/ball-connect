@@ -70,7 +70,9 @@ jobs:
           set -e
           CFG_DIR="$HOME/.config/godot"
           mkdir -p "$CFG_DIR"
-          cat > "$CFG_DIR/editor_settings-4.tres" <<EOF
+          GODOT_MINOR=$(echo "$GODOT_VERSION" | cut -d. -f1-2)
+          SETTINGS_FILE="$CFG_DIR/editor_settings-${GODOT_MINOR}.tres"
+          cat > "$SETTINGS_FILE" <<EOF
           [gd_resource type="EditorSettings" format=3]
 
           [resource]
@@ -80,7 +82,8 @@ jobs:
           export/android/debug_keystore_user = "androiddebugkey"
           export/android/debug_keystore_pass = "android"
           EOF
-          cat "$CFG_DIR/editor_settings-4.tres"
+          echo "Wrote $SETTINGS_FILE"
+          cat "$SETTINGS_FILE"
 
       - name: Pre-import project resources
         run: |
@@ -89,14 +92,16 @@ jobs:
 
       - name: Diagnostic dump
         run: |
-          echo "--- editor_settings-4.tres ---"
-          cat "$HOME/.config/godot/editor_settings-4.tres" || true
+          echo "--- ~/.config/godot listing ---"
+          ls -la "$HOME/.config/godot/" || true
+          echo "--- all editor_settings*.tres ---"
+          for f in "$HOME/.config/godot/"editor_settings*.tres; do
+            echo ">>> $f"; cat "$f" || true; echo
+          done
           echo "--- keystore info ---"
           keytool -list -keystore "$GITHUB_WORKSPACE/debug.keystore" -storepass android || true
           echo "--- export templates dir ---"
           ls -la "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/" || true
-          echo "--- ANDROID_HOME contents ---"
-          ls "$ANDROID_HOME/" || true
 
       - name: Export Android debug APK
         run: |
