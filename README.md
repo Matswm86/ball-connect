@@ -1,29 +1,52 @@
 # Ball Connect
 
-A ball-connect puzzle game. No ads, no IAP, no analytics, no tracking.
+A ball-connect puzzle game. **No ads, no IAP, no analytics, no tracking.**
 
 Drag a line from a colored ball to its same-color partner. Lines cannot cross
 each other, cannot cross themselves, and cannot pass through other balls.
 Connect every pair to win the level.
 
+<p align="center">
+  <img src="screenshots/level_2.jpeg" alt="Level 2 in-game" width="320"/>
+</p>
+
+## Install on Android
+
+**Direct APK download:**
+https://github.com/Matswm86/ball-connect/releases/download/latest/ball-connect.apk
+
+1. Open that link in your phone's browser and tap to download.
+2. When you tap the downloaded file, Android may say *"For your security, your
+   phone is not allowed to install unknown apps from this source."* Tap
+   **Settings**, toggle **Allow from this source**, then go back and install.
+3. The app appears as **Ball Connect**.
+
+> The APK is **debug-signed**, which means each new build uses a different
+> signing key. If installation fails because of a signature mismatch, uninstall
+> the previous version first.
+
+Permanent versioned downloads are also published to the
+[Releases page](https://github.com/Matswm86/ball-connect/releases) when a
+`vX.Y.Z` tag is pushed.
+
 ## Difficulty
 
 Starts hard. Level 1 has 6 colour pairs on a non-grid 1080×1920 board.
 Level 5 has 8 pairs in a tighter layout. Add more by dropping
-`data/levels/level_NN.json` files.
+`data/levels/level_NN.json` files and bumping `max_level` in the Game scene.
 
-## Run it
+## Run from source (desktop)
 
-1. Install **Godot 4.4** (Standard, not Mono unless you want C#).
-   - Linux: download from https://godotengine.org/, extract `Godot_v4.x_linux.x86_64`, run it.
+1. Install **Godot 4.6.x** from https://godotengine.org/ (single binary, no
+   install needed — just extract and run).
 2. Open the editor → **Import** → pick `project.godot` in this folder.
 3. Press **F5** (or hit ▶). Mouse acts as touch on desktop.
 
 ## Level format
 
 Each level is a JSON file in `data/levels/`. Coordinates are absolute pixels
-referenced to a 1080×1920 viewport (the project stretch mode handles
-scaling on other resolutions).
+referenced to a 1080×1920 viewport (the project stretch mode handles scaling
+on other resolutions).
 
 ```json
 {
@@ -42,57 +65,76 @@ Each color must appear exactly twice. Supported colors are defined in
 `scripts/GameManager.gd` (`COLOR_MAP`): `red`, `blue`, `green`, `yellow`,
 `orange`, `pink`, `cyan`, `purple`. Add more by extending the dict.
 
-Bump `max_level` in the Game scene's `GameManager` script export when you
-add levels past 5.
+## CI builds (how the APK gets made)
 
-## Build to APK (Phase 2 — not needed for first run)
+Every push to `main` triggers `.github/workflows/build-android.yml`, which:
 
-You only need this when you want to install on your phone.
+1. Spins up `ubuntu-latest`, installs Java 17 + Android SDK.
+2. Downloads Godot 4.6.2 headless + Android export templates.
+3. Generates a fresh debug keystore.
+4. Writes `editor_settings-4.6.tres` and the build template marker files.
+5. Runs `godot --headless --export-debug "Android" ball-connect.apk`.
+6. Uploads the APK as a workflow artifact, **and** updates the rolling
+   `latest` pre-release on the Releases page.
 
-1. Install Android tooling:
-   - **Android Studio** (https://developer.android.com/studio) — easiest path
-     to get the SDK + JDK in one go. Open it once, let it install the default
-     SDK, then close it.
-   - **Android platform-tools** for `adb`:
-     `sudo apt install android-tools-adb` (or use the standalone bundle from
-     https://developer.android.com/tools/releases/platform-tools).
-2. In Godot: **Editor → Editor Settings → Export → Android**. Set:
+For a permanent versioned APK: `git tag v0.1.0 && git push --tags`.
+
+Gotchas captured the hard way are in
+[`docs/godot-android-ci-notes.md`](docs/godot-android-ci-notes.md) — read
+that before reusing this workflow on another Godot project.
+
+## Build APK locally (alternative to CI)
+
+If you'd rather build on your laptop:
+
+1. Install **Android Studio** from https://developer.android.com/studio.
+   Open it once, let it install the default SDK, then close it.
+2. Install `adb`: `sudo apt install android-tools-adb` (or use the
+   [standalone platform-tools](https://developer.android.com/tools/releases/platform-tools)).
+3. In Godot: **Editor → Editor Settings → Export → Android**. Set:
    - Java SDK Path → e.g. `/usr/lib/jvm/java-17-openjdk-amd64`
    - Android SDK Path → e.g. `~/Android/Sdk`
-3. **Project → Export → Add… → Android**. Use the "Use Gradle Build" option
-   (one-time install of build templates from the editor). Configure:
-   - Package → Unique Name: `com.matswm.ballconnect`
-   - Permissions: leave **all unchecked** (no internet, no nothing).
-4. Click **Export Project** → produces `ball-connect.apk`.
-5. Sideload: enable Developer Options on the phone, enable USB debugging,
-   plug in, then `adb install ball-connect.apk`.
+4. **Project → Install Android Build Template** (one-click; uses the source
+   template that came with your Godot install).
+5. **Project → Export → Add… → Android**. Confirm `Use Gradle Build` is on.
+   `export_presets.cfg` already has the rest configured.
+6. Click **Export Project** → produces `ball-connect.apk`.
+7. Sideload: `adb install ball-connect.apk` (with your phone plugged in and
+   USB debugging enabled).
 
 ## File map
 
 ```
-project.godot           Engine settings (1080×1920 portrait, GL Compat renderer)
-icon.svg                App icon
+project.godot                   Engine settings (1080×1920 portrait, GL Compat)
+export_presets.cfg              Android export preset (gradle build, arm64-v8a)
+icon.svg                        App icon
+.github/workflows/
+  build-android.yml             CI workflow that produces the APK
+docs/
+  godot-android-ci-notes.md     Lessons learned from the 9-run CI debug saga
 scenes/
-  Game.tscn             Root scene
-  Ball.tscn             Ball template (instanced per ball)
+  Game.tscn                     Root scene
+  Ball.tscn                     Ball template (instanced per ball)
 scripts/
-  GameManager.gd        Level loader, win detection, scene transitions
-  LineDrawer.gd         Touch handling, polyline + segment-intersection rules
-  Ball.gd               Ball draw + hit-test
+  GameManager.gd                Level loader, win detection, scene transitions
+  LineDrawer.gd                 Touch handling, polyline + segment-intersection
+  Ball.gd                       Ball draw + hit-test
 data/levels/
-  level_01.json         …through level_05.json
+  level_01.json                 …through level_05.json
+screenshots/
+  level_2.jpeg                  In-game screenshot
 ```
 
 ## Design rules (locked-in defaults)
 
 - Free-form polyline path; sampled every 10px of finger movement.
-- A new segment is rejected if it crosses any other path, crosses the
-  current path's earlier segments, or passes within 85% of any
-  non-endpoint ball's radius.
+- A new segment is rejected if it crosses any other path, crosses the current
+  path's earlier segments, or passes within 85% of any non-endpoint ball's
+  radius.
 - Tap-and-drag from a ball that already has a path replaces that path.
 - Release on the matching-color other ball completes the pair; release
   anywhere else cancels the in-progress drag.
-- Win condition: all colors completed. Tap once to advance to the next level.
+- Win condition: all colors completed. Tap once to advance.
 
 Tweak in `scripts/LineDrawer.gd`:
 - `SAMPLE_DIST` — finer = smoother curves, more CPU
