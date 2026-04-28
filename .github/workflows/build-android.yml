@@ -1,0 +1,129 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: 4.6.2
+  EXPORT_NAME: ball-connect
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install required SDK packages
+        run: |
+          set -e
+          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Download Godot ${{ env.GODOT_VERSION }} (Linux headless)
+        run: |
+          set -e
+          URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          wget -q "$URL"
+          unzip -q "Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" godot
+          chmod +x godot
+          ./godot --version
+
+      - name: Download Godot Android export templates
+        run: |
+          set -e
+          URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          wget -q "$URL"
+          TPL_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$TPL_DIR"
+          unzip -q "Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          mv templates/* "$TPL_DIR/"
+          ls "$TPL_DIR" | head -20
+
+      - name: Generate debug keystore
+        run: |
+          set -e
+          keytool -genkeypair -v \
+            -keystore "$GITHUB_WORKSPACE/debug.keystore" \
+            -alias androiddebugkey \
+            -storepass android -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Configure Godot editor settings (SDK + keystore paths)
+        run: |
+          set -e
+          CFG_DIR="$HOME/.config/godot"
+          mkdir -p "$CFG_DIR"
+          cat > "$CFG_DIR/editor_settings-4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          export/android/debug_keystore = "$GITHUB_WORKSPACE/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+          cat "$CFG_DIR/editor_settings-4.tres"
+
+      - name: Pre-import project resources
+        run: |
+          ./godot --headless --import . || true
+          ./godot --headless --import .
+
+      - name: Export Android debug APK
+        run: |
+          set -e
+          ./godot --headless --export-debug "Android" "${EXPORT_NAME}.apk"
+          ls -la "${EXPORT_NAME}.apk"
+
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.EXPORT_NAME }}-apk
+          path: ${{ env.EXPORT_NAME }}.apk
+          retention-days: 30
+
+      - name: Update rolling "latest" pre-release (main pushes)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest build (rolling)
+          prerelease: true
+          body: |
+            Auto-built APK from latest `main` commit (${{ github.sha }}).
+            Sideload only — debug-signed, not for distribution.
+
+            **Install on phone:** download `${{ env.EXPORT_NAME }}.apk`, open it,
+            allow "Install from this source" if Android prompts. If reinstalling
+            over a previous build with a different signature, uninstall first.
+          files: ${{ env.EXPORT_NAME }}.apk
+          fail_on_unmatched_files: true
+
+      - name: Create tagged release (vX.Y.Z tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body: |
+            Release ${{ github.ref_name }}.
+            Sideload only — debug-signed, not for distribution.
+          files: ${{ env.EXPORT_NAME }}.apk
+          fail_on_unmatched_files: true
