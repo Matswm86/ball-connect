@@ -87,10 +87,21 @@ jobs:
           ./godot --headless --import . || true
           ./godot --headless --import .
 
+      - name: Diagnostic dump
+        run: |
+          echo "--- editor_settings-4.tres ---"
+          cat "$HOME/.config/godot/editor_settings-4.tres" || true
+          echo "--- keystore info ---"
+          keytool -list -keystore "$GITHUB_WORKSPACE/debug.keystore" -storepass android || true
+          echo "--- export templates dir ---"
+          ls -la "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/" || true
+          echo "--- ANDROID_HOME contents ---"
+          ls "$ANDROID_HOME/" || true
+
       - name: Export Android debug APK
         run: |
           set -e
-          ./godot --headless --export-debug "Android" "${EXPORT_NAME}.apk"
+          ./godot --headless --verbose --export-debug "Android" "${EXPORT_NAME}.apk" 2>&1 | tee export.log
           ls -la "${EXPORT_NAME}.apk"
 
       - name: Upload APK as workflow artifact
