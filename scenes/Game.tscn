@@ -1,0 +1,51 @@
+[gd_scene load_steps=3 format=3 uid="uid://b1gamex0001"]
+
+[ext_resource type="Script" path="res://scripts/GameManager.gd" id="1_gm"]
+[ext_resource type="Script" path="res://scripts/LineDrawer.gd" id="2_ld"]
+
+[node name="Game" type="Node2D"]
+script = ExtResource("1_gm")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 1080.0
+offset_bottom = 1920.0
+color = Color(0, 0, 0, 1)
+mouse_filter = 2
+
+[node name="LineDrawer" type="Node2D" parent="."]
+script = ExtResource("2_ld")
+
+[node name="BallLayer" type="Node2D" parent="."]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="LevelLabel" type="Label" parent="UI"]
+offset_left = 40.0
+offset_top = 40.0
+offset_right = 1040.0
+offset_bottom = 140.0
+theme_override_font_sizes/font_size = 64
+horizontal_alignment = 1
+text = "Level 1"
+
+[node name="HintLabel" type="Label" parent="UI"]
+offset_left = 40.0
+offset_top = 1820.0
+offset_right = 1040.0
+offset_bottom = 1900.0
+theme_override_font_sizes/font_size = 36
+horizontal_alignment = 1
+text = ""
+visible = false
+
+[node name="WinLabel" type="Label" parent="UI"]
+offset_left = 40.0
+offset_top = 800.0
+offset_right = 1040.0
+offset_bottom = 1100.0
+theme_override_font_sizes/font_size = 80
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+text = "Level Complete"
+visible = false

@@ -1,0 +1,22 @@
+{
+  "level": 4,
+  "ball_radius": 55,
+  "balls": [
+    {"color": "red",    "x": 180, "y": 280},
+    {"color": "red",    "x": 900, "y": 1620},
+    {"color": "blue",   "x": 900, "y": 280},
+    {"color": "blue",   "x": 180, "y": 1620},
+    {"color": "green",  "x": 540, "y": 280},
+    {"color": "green",  "x": 540, "y": 1620},
+    {"color": "yellow", "x": 180, "y": 950},
+    {"color": "yellow", "x": 900, "y": 950},
+    {"color": "orange", "x": 320, "y": 550},
+    {"color": "orange", "x": 760, "y": 1350},
+    {"color": "pink",   "x": 760, "y": 550},
+    {"color": "pink",   "x": 320, "y": 1350},
+    {"color": "cyan",   "x": 540, "y": 700},
+    {"color": "cyan",   "x": 540, "y": 1200},
+    {"color": "purple", "x": 380, "y": 950},
+    {"color": "purple", "x": 700, "y": 950}
+  ]
+}
