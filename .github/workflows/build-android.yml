@@ -91,9 +91,13 @@ jobs:
           TPL_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
           mkdir -p android/build
           unzip -q "$TPL_DIR/android_source.zip" -d android/build
-          ls android/build | head -20
-          # Mark template as installed so Godot accepts it
+          # Mark template as properly installed (mimics editor's "Install Build Template")
           touch android/build/.gdignore
+          echo "${GODOT_VERSION}.stable" > android/build/version.txt
+          echo "--- android/build contents ---"
+          ls android/build
+          echo "--- version.txt ---"
+          cat android/build/version.txt
 
       - name: Pre-import project resources
         run: |
