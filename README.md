@@ -21,9 +21,13 @@ https://github.com/Matswm86/ball-connect/releases/download/latest/ball-connect.a
    **Settings**, toggle **Allow from this source**, then go back and install.
 3. The app appears as **Ball Connect**.
 
-> The APK is **debug-signed**, which means each new build uses a different
-> signing key. If installation fails because of a signature mismatch, uninstall
-> the previous version first.
+> The APK is **debug-signed** with a stable key (stored as the
+> `ANDROID_DEBUG_KEYSTORE_BASE64` GitHub secret), so reinstalling a newer
+> build over an older one Just Works — no uninstall needed.
+>
+> *One-time exception:* the very first build with the stable key replaces
+> earlier ephemeral-key builds, so if you installed the APK before
+> 2026-04-28 you'll need to uninstall once before this build installs.
 
 Permanent versioned downloads are also published to the
 [Releases page](https://github.com/Matswm86/ball-connect/releases) when a
@@ -71,7 +75,9 @@ Every push to `main` triggers `.github/workflows/build-android.yml`, which:
 
 1. Spins up `ubuntu-latest`, installs Java 17 + Android SDK.
 2. Downloads Godot 4.6.2 headless + Android export templates.
-3. Generates a fresh debug keystore.
+3. Decodes the stable debug keystore from the `ANDROID_DEBUG_KEYSTORE_BASE64`
+   secret (falls back to generating an ephemeral keystore if the secret
+   isn't set, so forks still build).
 4. Writes `editor_settings-4.6.tres` and the build template marker files.
 5. Runs `godot --headless --export-debug "Android" ball-connect.apk`.
 6. Uploads the APK as a workflow artifact, **and** updates the rolling

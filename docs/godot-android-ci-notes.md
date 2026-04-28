@@ -160,11 +160,25 @@ after ~30 minutes of CI guessing.
   **Ignore it** — it's not an error.
 - Java 17 is what Godot 4.6 wants for the Gradle build. Java 21 *might*
   work but I haven't tested.
-- Each CI build generates a fresh debug keystore. That means each new
-  install on a phone requires uninstalling the previous version first
-  (signature mismatch). To avoid this: store a stable keystore as a
-  GitHub secret (`ANDROID_DEBUG_KEYSTORE_BASE64`) and decode it in the
-  workflow instead of generating fresh.
+- This repo uses a **stable debug keystore** stored as the
+  `ANDROID_DEBUG_KEYSTORE_BASE64` GitHub secret (base64-encoded PKCS12,
+  password `android`, alias `androiddebugkey`). The local copy lives at
+  `~/.local/share/godot/keystores/debug.keystore` (the path Godot's
+  editor settings already point at). Workflow decodes the secret to
+  `$GITHUB_WORKSPACE/debug.keystore` per run; signature stays constant
+  so reinstalling a newer APK over an older one doesn't require
+  uninstall first. Workflow falls back to ephemeral keystore generation
+  if the secret is unset, so forks still produce a (single-use) APK.
+- To set up the stable keystore in a new repo:
+  ```bash
+  keytool -genkeypair -v \
+    -keystore ~/.local/share/godot/keystores/debug.keystore \
+    -alias androiddebugkey -storepass android -keypass android \
+    -keyalg RSA -keysize 2048 -validity 10000 \
+    -dname "CN=Android Debug,O=Android,C=US" -storetype PKCS12
+  base64 -w 0 ~/.local/share/godot/keystores/debug.keystore | \
+    gh secret set ANDROID_DEBUG_KEYSTORE_BASE64 -R OWNER/REPO
+  ```
 
 ## Stack pick rationale (for reference)
 
