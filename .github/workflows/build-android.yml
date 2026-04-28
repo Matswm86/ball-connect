@@ -91,13 +91,22 @@ jobs:
           TPL_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
           mkdir -p android/build
           unzip -q "$TPL_DIR/android_source.zip" -d android/build
-          # Mark template as properly installed (mimics editor's "Install Build Template")
+          # Mark template as properly installed (mimics editor's "Install Build Template").
+          # version.txt must contain Godot's full version string (incl. build hash) — partial
+          # match (e.g. "4.6.2.stable") is rejected with "no version info for it exists".
           touch android/build/.gdignore
-          echo "${GODOT_VERSION}.stable" > android/build/version.txt
+          GODOT_FULL_VERSION=$(./godot --version | head -1 | tr -d '\r\n')
+          echo "Detected Godot version: $GODOT_FULL_VERSION"
+          echo -n "$GODOT_FULL_VERSION" > android/build/version.txt
+          # Some Godot versions also check this path:
+          echo -n "$GODOT_FULL_VERSION" > android/.build_version
+          echo "--- android/ contents ---"
+          ls android/
           echo "--- android/build contents ---"
           ls android/build
           echo "--- version.txt ---"
           cat android/build/version.txt
+          echo
 
       - name: Pre-import project resources
         run: |
