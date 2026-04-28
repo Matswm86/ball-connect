@@ -92,14 +92,19 @@ jobs:
           mkdir -p android/build
           unzip -q "$TPL_DIR/android_source.zip" -d android/build
           # Mark template as properly installed (mimics editor's "Install Build Template").
-          # Godot expects "X.Y.Z.stable" — NOT the full ".official.<hash>" suffix.
+          # Godot reads android/.build_version for the gradle template version check;
+          # android/build/version.txt is written for completeness. Content must be
+          # "X.Y.Z.stable" — without the .official.<hash> suffix.
           touch android/build/.gdignore
-          echo -n "${GODOT_VERSION}.stable" > android/build/version.txt
-          echo "--- android/build contents ---"
-          ls android/build
+          VERSION_STR="${GODOT_VERSION}.stable"
+          echo -n "$VERSION_STR" > android/.build_version
+          echo -n "$VERSION_STR" > android/build/version.txt
+          echo "--- android/ contents ---"
+          ls -la android/
+          echo "--- .build_version ---"
+          cat android/.build_version; echo
           echo "--- version.txt ---"
-          cat android/build/version.txt
-          echo
+          cat android/build/version.txt; echo
 
       - name: Pre-import project resources
         run: |
