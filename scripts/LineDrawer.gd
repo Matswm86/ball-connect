@@ -2,7 +2,8 @@ extends Node2D
 
 const SAMPLE_DIST: float = 10.0
 const LINE_WIDTH: float = 16.0
-const BALL_BLOCK_FACTOR: float = 0.85
+const BALL_BLOCK_FACTOR: float = 0.6
+const ENDPOINT_SNAP_FACTOR: float = 1.6
 
 var balls: Array = []
 var paths: Dictionary = {}
@@ -68,17 +69,25 @@ func _continue_drag(p: Vector2) -> void:
 func _end_drag(p: Vector2) -> void:
 	if current_start_ball == null:
 		return
+	var best_ball: Node2D = null
+	var best_dist: float = INF
 	for b in balls:
 		if b == current_start_ball:
 			continue
-		if b.color_name == current_color and b.contains_point(p):
-			var last: Vector2 = current_path[current_path.size() - 1]
-			if not _segment_blocked(last, b.position, true, b):
-				current_path.append(b.position)
-				paths[current_color] = current_path.duplicate()
-				_reset_drag()
-				emit_signal("pair_completed")
-				return
+		if b.color_name != current_color:
+			continue
+		var d: float = b.position.distance_to(p)
+		if d <= b.radius * ENDPOINT_SNAP_FACTOR and d < best_dist:
+			best_ball = b
+			best_dist = d
+	if best_ball != null:
+		var last: Vector2 = current_path[current_path.size() - 1]
+		if not _segment_blocked(last, best_ball.position, true, best_ball):
+			current_path.append(best_ball.position)
+			paths[current_color] = current_path.duplicate()
+			_reset_drag()
+			emit_signal("pair_completed")
+			return
 	_reset_drag()
 
 func _reset_drag() -> void:

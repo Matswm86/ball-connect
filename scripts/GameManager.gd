@@ -25,10 +25,15 @@ var won: bool = false
 @onready var level_label: Label = $UI/LevelLabel
 @onready var win_label: Label = $UI/WinLabel
 @onready var hint_label: Label = $UI/HintLabel
+@onready var reset_button: Button = $UI/ResetButton
 
 func _ready() -> void:
 	current_level = start_level
 	line_drawer.pair_completed.connect(_on_pair_completed)
+	reset_button.pressed.connect(_on_reset_pressed)
+	load_level(current_level)
+
+func _on_reset_pressed() -> void:
 	load_level(current_level)
 
 func load_level(n: int) -> void:
@@ -39,6 +44,7 @@ func load_level(n: int) -> void:
 	won = false
 	win_label.visible = false
 	hint_label.visible = false
+	reset_button.visible = true
 
 	var path: String = "%slevel_%02d.json" % [levels_path, n]
 	if not FileAccess.file_exists(path):
@@ -81,6 +87,7 @@ func _on_pair_completed() -> void:
 		line_drawer.enabled = false
 		win_label.text = "Level %d complete\nTap to continue" % current_level
 		win_label.visible = true
+		reset_button.visible = false
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not won:

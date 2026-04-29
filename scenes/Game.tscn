@@ -49,3 +49,11 @@ vertical_alignment = 1
 autowrap_mode = 2
 text = "Level Complete"
 visible = false
+
+[node name="ResetButton" type="Button" parent="UI"]
+offset_left = 40.0
+offset_top = 1700.0
+offset_right = 1040.0
+offset_bottom = 1810.0
+theme_override_font_sizes/font_size = 56
+text = "Reset Level"
