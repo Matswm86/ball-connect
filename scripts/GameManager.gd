@@ -1,13 +1,13 @@
 extends Node2D
 
 const COLOR_MAP: Dictionary = {
-	"red":    Color(0.95, 0.22, 0.30),
-	"blue":   Color(0.20, 0.65, 0.97),
-	"green":  Color(0.30, 0.86, 0.32),
+	"red": Color(0.95, 0.22, 0.30),
+	"blue": Color(0.20, 0.65, 0.97),
+	"green": Color(0.30, 0.86, 0.32),
 	"yellow": Color(0.98, 0.92, 0.20),
 	"orange": Color(0.98, 0.55, 0.10),
-	"pink":   Color(0.95, 0.40, 0.85),
-	"cyan":   Color(0.20, 0.92, 0.92),
+	"pink": Color(0.95, 0.40, 0.85),
+	"cyan": Color(0.20, 0.92, 0.92),
 	"purple": Color(0.66, 0.32, 0.95)
 }
 
@@ -27,14 +27,17 @@ var won: bool = false
 @onready var hint_label: Label = $UI/HintLabel
 @onready var reset_button: Button = $UI/ResetButton
 
+
 func _ready() -> void:
 	current_level = start_level
 	line_drawer.pair_completed.connect(_on_pair_completed)
 	reset_button.pressed.connect(_on_reset_pressed)
 	load_level(current_level)
 
+
 func _on_reset_pressed() -> void:
 	load_level(current_level)
+
 
 func load_level(n: int) -> void:
 	for b in balls:
@@ -75,11 +78,13 @@ func load_level(n: int) -> void:
 
 	line_drawer.setup(balls)
 
+
 func _total_pairs() -> int:
 	var seen: Dictionary = {}
 	for b in balls:
 		seen[b.color_name] = true
 	return seen.size()
+
 
 func _on_pair_completed() -> void:
 	if line_drawer.completed_pair_count() == _total_pairs():
@@ -89,11 +94,13 @@ func _on_pair_completed() -> void:
 		win_label.visible = true
 		reset_button.visible = false
 
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not won:
 		return
 	if event is InputEventScreenTouch and event.pressed:
 		_advance()
+
 
 func _advance() -> void:
 	current_level += 1
