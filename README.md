@@ -79,7 +79,7 @@ Every push to `main` triggers `.github/workflows/build-android.yml`, which:
    secret (falls back to generating an ephemeral keystore if the secret
    isn't set, so forks still build).
 4. Writes `editor_settings-4.6.tres` and the build template marker files.
-5. Runs `godot --headless --export-debug "Android" ball-connect.apk`.
+5. Runs `godot --headless --verbose --export-debug "Android" ball-connect.apk`.
 6. Uploads the APK as a workflow artifact, **and** updates the rolling
    `latest` pre-release on the Releases page.
 
@@ -116,6 +116,7 @@ export_presets.cfg              Android export preset (gradle build, arm64-v8a)
 icon.svg                        App icon
 .github/workflows/
   build-android.yml             CI workflow that produces the APK
+  gdlint.yml                    CI check: gdformat --check + gdlint on .gd files
 docs/
   godot-android-ci-notes.md     Lessons learned from the 9-run CI debug saga
 scenes/
@@ -135,14 +136,18 @@ screenshots/
 
 - Free-form polyline path; sampled every 10px of finger movement.
 - A new segment is rejected if it crosses any other path, crosses the current
-  path's earlier segments, or passes within 85% of any non-endpoint ball's
+  path's earlier segments, or passes within 60% of any non-endpoint ball's
   radius.
 - Tap-and-drag from a ball that already has a path replaces that path.
-- Release on the matching-color other ball completes the pair; release
-  anywhere else cancels the in-progress drag.
+- Release on, or within 1.6× the radius of, the matching-color other ball
+  completes the pair; release anywhere else cancels the in-progress drag.
+- A **Reset Level** button reloads the current level. It is hidden on the
+  win screen.
 - Win condition: all colors completed. Tap once to advance.
 
 Tweak in `scripts/LineDrawer.gd`:
 - `SAMPLE_DIST` — finer = smoother curves, more CPU
 - `LINE_WIDTH` — visual thickness
 - `BALL_BLOCK_FACTOR` — lower = easier to squeeze between balls
+- `ENDPOINT_SNAP_FACTOR`: how close to the partner ball (in ball radii) a
+  release still counts as a connection

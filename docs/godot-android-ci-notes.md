@@ -113,7 +113,7 @@ Key shape, in order:
 
 The hand-written `export_presets.cfg` at the repo root has ~200 lines of
 permission flags etc. Most of those don't matter; Godot fills defaults.
-The lines that are load-bearing for an APK build:
+The lines that matter for an APK build:
 
 ```ini
 [preset.0]
