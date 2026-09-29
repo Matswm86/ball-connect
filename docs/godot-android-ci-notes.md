@@ -91,7 +91,9 @@ Key shape, in order:
 
 1. `actions/checkout@v4`
 2. `actions/setup-java@v4` with `java-version: '17'` distribution `temurin`
-3. `android-actions/setup-android@v3` + `sdkmanager` for `platform-tools`,
+3. `android-actions/setup-android@v3` with `packages: 'platform-tools'` (the
+   default `tools platform-tools` fails because Google removed the legacy
+   `tools` package), then `sdkmanager` for `platform-tools`,
    `platforms;android-34`, `build-tools;34.0.0`
 4. `wget` Godot Linux headless from
    `https://github.com/godotengine/godot/releases/download/${VERSION}-stable/Godot_v${VERSION}-stable_linux.x86_64.zip`,

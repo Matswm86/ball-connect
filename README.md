@@ -122,7 +122,7 @@ If you'd rather build on your laptop:
 ## File map
 
 ```
-project.godot                   Engine settings (1080×1920 portrait, GL Compat)
+project.godot                   Engine settings (1080×1920 portrait, Mobile renderer)
 export_presets.cfg              Android export preset (gradle build, arm64-v8a)
 icon.svg                        App icon
 .github/workflows/
@@ -136,11 +136,16 @@ scenes/
 scripts/
   GameManager.gd                Level loader, win detection, scene transitions
   LineDrawer.gd                 Touch handling, polyline + segment-intersection
-  Ball.gd                       Ball draw + hit-test
+  Ball.gd                       Ball data + hit-test (its 2D draw is hidden)
+  Board3D.gd                    3D board: spheres, tubes, camera, touch mapping
+  board_floor.gdshader          Felt playfield shader for the 3D board
+tests/
+  capture.tscn, capture.gd      Offscreen screenshot run (dev only, not exported)
 data/levels/
   level_01.json                 …through level_05.json
 screenshots/
-  level_2.jpeg                  In-game screenshot
+  level_1_3d.jpeg               3D board screenshot (shown at the top)
+  level_2.jpeg                  Earlier screenshot from the flat 2D version
 ```
 
 ## Design rules (locked-in defaults)
@@ -152,13 +157,14 @@ screenshots/
 - Tap-and-drag from a ball that already has a path replaces that path.
 - Release on, or within 1.6× the radius of, the matching-color other ball
   completes the pair; release anywhere else cancels the in-progress drag.
-- A **Reset Level** button reloads the current level. It is hidden on the
+- A **Reset** button reloads the current level. It is hidden on the
   win screen.
 - Win condition: all colors completed. Tap once to advance.
 
 Tweak in `scripts/LineDrawer.gd`:
 - `SAMPLE_DIST` — finer = smoother curves, more CPU
-- `LINE_WIDTH` — visual thickness
+- `LINE_WIDTH`: thickness of the hidden 2D line; the visible tube thickness
+  is `TUBE_RADIUS` in `scripts/Board3D.gd`
 - `BALL_BLOCK_FACTOR` — lower = easier to squeeze between balls
 - `ENDPOINT_SNAP_FACTOR`: how close to the partner ball (in ball radii) a
   release still counts as a connection
