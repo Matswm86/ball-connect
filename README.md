@@ -7,7 +7,7 @@ each other, cannot cross themselves, and cannot pass through other balls.
 Connect every pair to win the level.
 
 <p align="center">
-  <img src="screenshots/level_2.jpeg" alt="Level 2 in-game" width="320"/>
+  <img src="screenshots/level_1_3d.jpeg" alt="Level 1 in-game, 3D board" width="320"/>
 </p>
 
 ## Install on Android
@@ -32,6 +32,17 @@ https://github.com/Matswm86/ball-connect/releases/download/latest/ball-connect.a
 Permanent versioned downloads are also published to the
 [Releases page](https://github.com/Matswm86/ball-connect/releases) when a
 `vX.Y.Z` tag is pushed.
+
+## Graphics
+
+The board renders in real-time 3D with Godot's Mobile (Vulkan) renderer:
+glossy spheres on glowing sockets, tube lines, bloom, soft shadows, and spark
+bursts when a pair connects. Phones without Vulkan fall back to OpenGL
+automatically. Gameplay still runs in 1080x1920 board pixels; `Board3D.gd`
+mirrors that state into meshes and maps touches back through a camera ray.
+
+`tests/capture.tscn` renders screenshots offscreen (dev only, not exported):
+run it under Xvfb with `CAPTURE_DIR=/some/dir`.
 
 ## Difficulty
 

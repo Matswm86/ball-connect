@@ -22,6 +22,7 @@ var won: bool = false
 
 @onready var ball_layer: Node2D = $BallLayer
 @onready var line_drawer: Node2D = $LineDrawer
+@onready var board_3d: Node3D = $Board3D
 @onready var level_label: Label = $UI/LevelLabel
 @onready var win_label: Label = $UI/WinLabel
 @onready var hint_label: Label = $UI/HintLabel
@@ -30,6 +31,9 @@ var won: bool = false
 
 func _ready() -> void:
 	current_level = start_level
+	board_3d.line_drawer = line_drawer
+	line_drawer.input_mapper = board_3d.screen_to_board
+	_style_ui()
 	line_drawer.pair_completed.connect(_on_pair_completed)
 	reset_button.pressed.connect(_on_reset_pressed)
 	load_level(current_level)
@@ -77,6 +81,7 @@ func load_level(n: int) -> void:
 		balls.append(ball)
 
 	line_drawer.setup(balls)
+	board_3d.setup(balls)
 
 
 func _total_pairs() -> int:
@@ -93,6 +98,9 @@ func _on_pair_completed() -> void:
 		win_label.text = "Level %d complete\nTap to continue" % current_level
 		win_label.visible = true
 		reset_button.visible = false
+		board_3d.celebrate()
+		win_label.modulate.a = 0.0
+		create_tween().tween_property(win_label, "modulate:a", 1.0, 0.5).set_delay(0.4)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -107,3 +115,51 @@ func _advance() -> void:
 	if current_level > max_level:
 		current_level = 1
 	load_level(current_level)
+
+
+func _style_ui() -> void:
+	var accent := Color(0.45, 0.95, 0.88)
+	for label in [level_label, hint_label, win_label]:
+		label.add_theme_color_override("font_color", Color(0.95, 0.98, 1.0))
+		label.add_theme_color_override("font_outline_color", Color(0.02, 0.05, 0.07, 0.9))
+		label.add_theme_constant_override("outline_size", 14)
+		label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.5))
+		label.add_theme_constant_override("shadow_offset_y", 6)
+
+	level_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	level_label.offset_top = 60
+	level_label.offset_bottom = 160
+	level_label.add_theme_color_override("font_color", accent)
+
+	win_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	win_label.add_theme_font_size_override("font_size", 88)
+
+	hint_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	hint_label.offset_top = -110
+	hint_label.offset_bottom = -30
+
+	reset_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	reset_button.offset_left = -250
+	reset_button.offset_right = -40
+	reset_button.offset_top = 66
+	reset_button.offset_bottom = 156
+	reset_button.add_theme_font_size_override("font_size", 40)
+	reset_button.text = "Reset"
+	reset_button.focus_mode = Control.FOCUS_NONE
+	var states: Dictionary = {
+		"normal": Color(0.06, 0.16, 0.19, 0.85),
+		"hover": Color(0.09, 0.23, 0.27, 0.9),
+		"pressed": Color(0.14, 0.34, 0.38, 0.95),
+	}
+	for state in states:
+		var box := StyleBoxFlat.new()
+		box.bg_color = states[state]
+		box.border_color = accent
+		box.set_border_width_all(4)
+		box.set_corner_radius_all(45)
+		box.shadow_color = Color(accent, 0.25)
+		box.shadow_size = 12
+		reset_button.add_theme_stylebox_override(state, box)
+	reset_button.add_theme_color_override("font_color", accent)
+	reset_button.add_theme_color_override("font_hover_color", Color.WHITE)
+	reset_button.add_theme_color_override("font_pressed_color", Color.WHITE)

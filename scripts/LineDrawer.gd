@@ -11,6 +11,10 @@ var current_path: Array = []
 var current_color: String = ""
 var current_start_ball: Node2D = null
 var enabled: bool = true
+## Bumped on every visual change so the 3D board knows when to rebuild meshes.
+var revision: int = 0
+## Maps a viewport touch position to board pixels (set by GameManager).
+var input_mapper: Callable
 
 signal pair_completed
 signal all_paths_changed
@@ -27,6 +31,7 @@ func clear_all() -> void:
 	current_path.clear()
 	current_color = ""
 	current_start_ball = null
+	revision += 1
 	queue_redraw()
 
 
@@ -37,13 +42,18 @@ func completed_pair_count() -> int:
 func _unhandled_input(event: InputEvent) -> void:
 	if not enabled:
 		return
+	if not (event is InputEventScreenTouch or event is InputEventScreenDrag):
+		return
+	var pos: Vector2 = event.position
+	if input_mapper.is_valid():
+		pos = input_mapper.call(pos)
 	if event is InputEventScreenTouch:
 		if event.pressed:
-			_start_drag(event.position)
+			_start_drag(pos)
 		else:
-			_end_drag(event.position)
-	elif event is InputEventScreenDrag:
-		_continue_drag(event.position)
+			_end_drag(pos)
+	else:
+		_continue_drag(pos)
 
 
 func _start_drag(p: Vector2) -> void:
@@ -54,6 +64,7 @@ func _start_drag(p: Vector2) -> void:
 			current_start_ball = b
 			current_path = [b.position]
 			emit_signal("all_paths_changed")
+			revision += 1
 			queue_redraw()
 			return
 	current_start_ball = null
@@ -70,6 +81,7 @@ func _continue_drag(p: Vector2) -> void:
 	if _segment_blocked(last, p, false, null):
 		return
 	current_path.append(p)
+	revision += 1
 	queue_redraw()
 
 
@@ -103,6 +115,7 @@ func _reset_drag() -> void:
 	current_color = ""
 	current_start_ball = null
 	emit_signal("all_paths_changed")
+	revision += 1
 	queue_redraw()
 
 
