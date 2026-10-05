@@ -12,6 +12,9 @@ const TUBE_HEIGHT: float = 0.17
 const CAMERA_FOV: float = 20.0
 const CAMERA_TILT_DEG: float = 6.0
 const VISIBLE_WIDTH: float = 11.4
+## World units the view is shifted so the board sits about 80 px lower on
+## screen, keeping the top-left 232 px square free (the MWM Play home button).
+const BOARD_SCREEN_SHIFT: float = 0.85
 
 var line_drawer: Node2D = null
 
@@ -121,9 +124,10 @@ func _build_camera() -> void:
 	_camera.fov = CAMERA_FOV
 	var dist: float = (VISIBLE_WIDTH * 0.5) / tan(deg_to_rad(CAMERA_FOV * 0.5))
 	var tilt: float = deg_to_rad(CAMERA_TILT_DEG)
-	_camera.position = Vector3(0, dist * cos(tilt), dist * sin(tilt))
+	var target := Vector3(0, 0, -BOARD_SCREEN_SHIFT)
+	_camera.position = target + Vector3(0, dist * cos(tilt), dist * sin(tilt))
 	add_child(_camera)
-	_camera.look_at(Vector3.ZERO, Vector3.FORWARD)
+	_camera.look_at(target, Vector3.FORWARD)
 	_camera.current = true
 
 
