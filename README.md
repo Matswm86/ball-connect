@@ -173,6 +173,9 @@ screenshots/
   diamond, plus, moon) so pairs match by shape too.
 - A round **restart** icon in the top-right corner reloads the current level.
   It is hidden on the win screen. Level progress shows as dots, not text.
+- Idle hint: after 8 s without a touch on an unsolved board, one pair (the
+  one in hand, else the closest unconnected pair) swells and glows 3 times at
+  1 pulse per second. No sound, no text; any touch stops it.
 - Win condition: all colors completed. Tap the big green arrow to advance.
 
 Tweak in `scripts/LineDrawer.gd`:

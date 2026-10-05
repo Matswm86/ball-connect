@@ -28,6 +28,12 @@ const TAP_GLOW: float = 0.7
 ## Small discs on the cells the tapped line can grow into next.
 const MARKER_RADIUS: float = 0.2
 const MAX_MARKERS: int = 8
+## Idle hint (rule 18): slow swell of one pair, 1 pulse per second (rule 37
+## allows up to 3), 3 pulses, then still until the next idle period.
+const HINT_HZ: float = 1.0
+const HINT_PULSES: int = 3
+const HINT_SCALE: float = 0.16
+const HINT_GLOW: float = 0.75
 
 var line_drawer: Node2D = null
 
@@ -47,6 +53,8 @@ var _spring_path: Array = []
 var _spring_color: Color = Color.WHITE
 var _spring_t: float = 0.0
 var _markers: Array = []  # MeshInstance3D pool for tap targets
+var _hint_balls: Array = []
+var _hint_t: float = -1.0  # seconds into the hint, < 0 = no hint
 var _lift: Dictionary = {}  # Ball (Node2D) -> current tap lift in world units
 
 
@@ -227,6 +235,7 @@ func setup(balls: Array) -> void:
 	_drag_head.visible = false
 	_spring_tube.mesh = null
 	_spring_t = 0.0
+	stop_hint()
 	_balls = balls
 	_last_revision = -1
 
@@ -344,6 +353,21 @@ func play_fail(ball: Node2D, path: Array) -> void:
 	tw.tween_property(holder, "position", home, step)
 
 
+## Idle hint: pulse these balls (one pair) HINT_PULSES times.
+func show_hint(hint_balls: Array) -> void:
+	_hint_balls = hint_balls
+	_hint_t = 0.0
+
+
+func stop_hint() -> void:
+	_hint_balls = []
+	_hint_t = -1.0
+
+
+func hint_active() -> bool:
+	return _hint_t >= 0.0
+
+
 # ---------------------------------------------------------------- per frame
 
 
@@ -370,12 +394,22 @@ func _animate_balls(delta: float) -> void:
 	var active: Node2D = line_drawer.current_start_ball
 	var tapped: bool = line_drawer.tap_selected
 	var k: float = 1.0 - exp(-delta * 14.0)
+	var pulse: float = 0.0
+	if _hint_t >= 0.0:
+		_hint_t += delta
+		if _hint_t >= HINT_PULSES / HINT_HZ:
+			stop_hint()
+		else:
+			pulse = 0.5 - 0.5 * cos(TAU * HINT_HZ * _hint_t)
 	for b in _balls:
 		var holder: Node3D = _ball_nodes[b]
 		if holder.scale.x < 0.99:
 			continue  # spawn tween still running
 		var sphere: Node3D = holder.get_node("Sphere")
 		var target: float = 1.14 if b == active else 1.0
+		var hinted: bool = _hint_balls.has(b)
+		if hinted:
+			target = maxf(target, 1.0 + HINT_SCALE * pulse)
 		sphere.scale = sphere.scale.lerp(Vector3.ONE * target, k)
 		# Lift is added as a delta so the win bounce tween keeps working.
 		var lift_to: float = TAP_LIFT if (tapped and b == active) else 0.0
@@ -389,6 +423,8 @@ func _animate_balls(delta: float) -> void:
 			glow = 0.55 + 0.15 * sin(_time * 3.0 + b.position.x * 0.01)
 		elif b == active:
 			glow = TAP_GLOW if tapped else 0.5
+		if hinted:
+			glow = maxf(glow, 0.08 + HINT_GLOW * pulse)
 		mat.emission_energy_multiplier = lerpf(mat.emission_energy_multiplier, glow, k)
 
 

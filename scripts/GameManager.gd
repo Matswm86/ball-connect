@@ -34,6 +34,9 @@ const NEXT_ARROW_DELAY: float = 0.9
 ## 13.7 mm at 430 dpi; the next arrow is 360 px = 22.9 / 21.3 mm.
 const RESTART_HIT: float = 232.0
 const NEXT_HIT: float = 360.0
+## Idle hint (rule 18): after this long without a touch on an unsolved
+## board, one pair pulses; at most once per this period.
+const IDLE_HINT_DELAY: float = 8.0
 ## Board px kept free inside the visible screen for tap cells and routes.
 const BOARD_MARGIN: float = 24.0
 
@@ -46,6 +49,7 @@ var balls: Array = []
 var ball_scene: PackedScene = preload("res://scenes/Ball.tscn")
 var won: bool = false
 var highest_level: int = 1
+var _idle_since_ms: int = 0
 
 @onready var ball_layer: Node2D = $BallLayer
 @onready var line_drawer: Node2D = $LineDrawer
@@ -71,6 +75,46 @@ func _ready() -> void:
 
 func _on_reset_pressed() -> void:
 	load_level(current_level)
+
+
+## Any touch stops the idle hint and restarts the idle clock.
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		_idle_since_ms = Time.get_ticks_msec()
+		if board_3d.hint_active():
+			board_3d.stop_hint()
+
+
+func _process(_delta: float) -> void:
+	var now: int = Time.get_ticks_msec()
+	if won or balls.is_empty():
+		_idle_since_ms = now
+		return
+	if now - _idle_since_ms >= int(IDLE_HINT_DELAY * 1000.0):
+		_idle_since_ms = now
+		var pair: Array = _hint_pair()
+		if not pair.is_empty():
+			board_3d.show_hint(pair)
+
+
+## The pair to hint: the one in hand, else the closest unconnected pair (the
+## pair the level checker's solver tries first).
+func _hint_pair() -> Array:
+	var by_color: Dictionary = {}
+	for b in balls:
+		if not line_drawer.paths.has(b.color_name):
+			by_color[b.color_name] = by_color.get(b.color_name, []) + [b]
+	var held: Node2D = line_drawer.current_start_ball
+	if held != null and by_color.has(held.color_name):
+		return by_color[held.color_name]
+	var best: Array = []
+	var best_d: float = INF
+	for k in by_color:
+		var pr: Array = by_color[k]
+		if pr.size() == 2 and pr[0].position.distance_to(pr[1].position) < best_d:
+			best_d = pr[0].position.distance_to(pr[1].position)
+			best = pr
+	return best
 
 
 func load_level(n: int) -> void:
@@ -115,6 +159,7 @@ func load_level(n: int) -> void:
 	line_drawer.setup(balls)
 	line_drawer.board_rect = _visible_board_rect()
 	board_3d.setup(balls)
+	_idle_since_ms = Time.get_ticks_msec()
 
 
 ## Board px rectangle that is on screen on every row (the camera tilts, so the
