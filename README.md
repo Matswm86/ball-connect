@@ -46,9 +46,13 @@ run it under Xvfb with `CAPTURE_DIR=/some/dir`.
 
 ## Difficulty
 
-Starts hard. Level 1 has 6 colour pairs on a non-grid 1080×1920 board.
-Level 5 has 8 pairs in a tighter layout. Add more by dropping
-`data/levels/level_NN.json` files and bumping `max_level` in the Game scene.
+Starts gentle, for a 4-year-old: level 1 is 2 pairs with straight routes,
+level 2 is 3 pairs, level 3 is 4 pairs where one needs a bend. Levels 4-8 have
+6-8 crossing pairs. Add more by dropping `data/levels/level_NN.json` files and
+bumping `max_level` in the Game scene, then run the level check:
+`godot --headless --audio-driver Dummy res://tests/level_check.tscn`. It checks
+touch sizes and spacing on a 1080×1920 screen, solves every level and replays
+the solution through the game's own line rules; exit code = failing levels.
 
 ## Run from source (desktop)
 
@@ -142,7 +146,7 @@ scripts/
 tests/
   capture.tscn, capture.gd      Offscreen screenshot run (dev only, not exported)
 data/levels/
-  level_01.json                 …through level_05.json
+  level_01.json                 …through level_08.json
 screenshots/
   level_1_3d.jpeg               3D board screenshot (shown at the top)
   level_2.jpeg                  Earlier screenshot from the flat 2D version
@@ -155,11 +159,15 @@ screenshots/
   path's earlier segments, or passes within 60% of any non-endpoint ball's
   radius.
 - Tap-and-drag from a ball that already has a path replaces that path.
-- Release on, or within 1.6× the radius of, the matching-color other ball
-  completes the pair; release anywhere else cancels the in-progress drag.
-- A **Reset** button reloads the current level. It is hidden on the
-  win screen.
-- Win condition: all colors completed. Tap once to advance.
+- Every ball has a 120 px touch radius (`HIT_RADIUS` in `scripts/Ball.gd`),
+  larger than the drawn ball; a drag starts from the nearest ball in reach.
+- Release inside the matching ball's touch area completes the pair; release
+  anywhere else makes the line spring back into its ball while the ball shakes.
+- Each colour also has its own symbol (heart, circle, triangle, star, square,
+  diamond, plus, moon) so pairs match by shape too.
+- A round **restart** icon in the top-right corner reloads the current level.
+  It is hidden on the win screen. Level progress shows as dots, not text.
+- Win condition: all colors completed. Tap the big green arrow to advance.
 
 Tweak in `scripts/LineDrawer.gd`:
 - `SAMPLE_DIST` — finer = smoother curves, more CPU

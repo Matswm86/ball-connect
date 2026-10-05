@@ -1,22 +1,20 @@
 {
   "level": 5,
-  "ball_radius": 55,
+  "ball_radius": 60,
   "balls": [
-    {"color": "red",    "x": 200, "y": 280},
-    {"color": "red",    "x": 880, "y": 1620},
-    {"color": "blue",   "x": 880, "y": 280},
-    {"color": "blue",   "x": 200, "y": 1620},
-    {"color": "green",  "x": 540, "y": 280},
-    {"color": "green",  "x": 540, "y": 1620},
-    {"color": "yellow", "x": 200, "y": 950},
-    {"color": "yellow", "x": 880, "y": 950},
-    {"color": "orange", "x": 340, "y": 540},
-    {"color": "orange", "x": 740, "y": 1360},
-    {"color": "pink",   "x": 740, "y": 540},
-    {"color": "pink",   "x": 340, "y": 1360},
-    {"color": "cyan",   "x": 540, "y": 600},
-    {"color": "cyan",   "x": 540, "y": 1300},
-    {"color": "purple", "x": 380, "y": 950},
-    {"color": "purple", "x": 700, "y": 950}
+    {"color": "red", "x": 160, "y": 258},
+    {"color": "red", "x": 920, "y": 1461},
+    {"color": "blue", "x": 920, "y": 258},
+    {"color": "blue", "x": 160, "y": 1461},
+    {"color": "green", "x": 540, "y": 258},
+    {"color": "green", "x": 540, "y": 1461},
+    {"color": "yellow", "x": 160, "y": 860},
+    {"color": "yellow", "x": 920, "y": 860},
+    {"color": "orange", "x": 330, "y": 536},
+    {"color": "orange", "x": 750, "y": 1184},
+    {"color": "pink", "x": 750, "y": 536},
+    {"color": "pink", "x": 330, "y": 1184},
+    {"color": "cyan", "x": 540, "y": 675},
+    {"color": "cyan", "x": 540, "y": 1045}
   ]
 }

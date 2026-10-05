@@ -15,6 +15,13 @@ const VISIBLE_WIDTH: float = 11.4
 ## World units the view is shifted so the board sits about 80 px lower on
 ## screen, keeping the top-left 232 px square free (the MWM Play home button).
 const BOARD_SCREEN_SHIFT: float = 0.85
+## Symbol inside each ball, so pairs match by shape as well as colour (rule 36).
+const SYMBOL_SIZE: float = 0.5  # symbol radius as a share of the ball radius
+const SYMBOL_COLOR: Color = Color(0.141, 0.129, 0.114)  # DESIGN.md ink
+## A drag that does not connect shrinks back to its ball and the ball shakes.
+const SPRING_BACK_TIME: float = 0.45
+const SHAKE_TIME: float = 0.4
+const SHAKE_AMOUNT: float = 0.09
 
 var line_drawer: Node2D = null
 
@@ -29,6 +36,10 @@ var _connected: Dictionary = {}  # color name -> true
 var _last_revision: int = -1
 var _time: float = 0.0
 var _floor_shader: Shader = preload("res://scripts/board_floor.gdshader")
+var _spring_tube: MeshInstance3D
+var _spring_path: Array = []
+var _spring_color: Color = Color.WHITE
+var _spring_t: float = 0.0
 
 
 func _ready() -> void:
@@ -47,6 +58,8 @@ func _ready() -> void:
 	_drag_head.mesh = head_mesh
 	_drag_head.visible = false
 	add_child(_drag_head)
+	_spring_tube = MeshInstance3D.new()
+	add_child(_spring_tube)
 
 
 # ---------------------------------------------------------------- coordinates
@@ -190,6 +203,8 @@ func setup(balls: Array) -> void:
 		child.queue_free()
 	_drag_tube.mesh = null
 	_drag_head.visible = false
+	_spring_tube.mesh = null
+	_spring_t = 0.0
 	_balls = balls
 	_last_revision = -1
 
@@ -225,6 +240,18 @@ func setup(balls: Array) -> void:
 		ball_mesh.material_override = mat
 		ball_mesh.position.y = r
 		holder.add_child(ball_mesh)
+
+		var mark := MeshInstance3D.new()
+		mark.name = "Symbol"
+		mark.mesh = _symbol_mesh(String(b.symbol), r * SYMBOL_SIZE)
+		var mark_mat := StandardMaterial3D.new()
+		mark_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mark_mat.albedo_color = SYMBOL_COLOR
+		mark_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mark.material_override = mark_mat
+		mark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mark.position.y = r + 0.004
+		ball_mesh.add_child(mark)
 
 		var torus := TorusMesh.new()
 		torus.inner_radius = r * 1.08
@@ -276,6 +303,25 @@ func celebrate() -> void:
 		i += 1
 
 
+## Visible "no" for a drag that did not connect: the drawn line shrinks back
+## into its ball and the ball shakes its head. Never a silent nothing.
+func play_fail(ball: Node2D, path: Array) -> void:
+	if not _ball_nodes.has(ball):
+		return
+	_spring_path = path.duplicate()
+	_spring_color = ball.color
+	_spring_t = SPRING_BACK_TIME if path.size() >= 2 else 0.0
+	var holder: Node3D = _ball_nodes[ball]
+	var home: Vector3 = px_to_world(ball.position)
+	holder.position = home
+	var tw := create_tween()
+	var step: float = SHAKE_TIME / 6.0
+	for i in range(5):
+		var side: float = SHAKE_AMOUNT * (1.0 - i / 5.0) * (1.0 if i % 2 == 0 else -1.0)
+		tw.tween_property(holder, "position", home + Vector3(side, 0, 0), step)
+	tw.tween_property(holder, "position", home, step)
+
+
 # ---------------------------------------------------------------- per frame
 
 
@@ -283,6 +329,15 @@ func _process(delta: float) -> void:
 	_time += delta
 	if line_drawer == null:
 		return
+	if _spring_t > 0.0:
+		# Capped step: a slow frame cannot skip the whole cue.
+		_spring_t = maxf(_spring_t - minf(delta, 1.0 / 30.0), 0.0)
+		var left: float = _spring_t / SPRING_BACK_TIME
+		var cut: Array = _path_prefix(_spring_path, left * left)
+		_spring_tube.mesh = _build_tube(cut) if cut.size() >= 2 else null
+		_spring_tube.material_override = _tube_material(_spring_color, 1.2)
+	elif _spring_tube.mesh != null:
+		_spring_tube.mesh = null
 	if line_drawer.revision != _last_revision:
 		_last_revision = line_drawer.revision
 		_sync_paths()
@@ -341,6 +396,112 @@ func _sync_paths() -> void:
 
 
 # ---------------------------------------------------------------- mesh helpers
+
+
+## First `share` (0..1) of a polyline, measured along its length.
+func _path_prefix(pts: Array, share: float) -> Array:
+	var total: float = 0.0
+	for i in range(pts.size() - 1):
+		total += (pts[i] as Vector2).distance_to(pts[i + 1])
+	var want: float = total * share
+	var out: Array = [pts[0]]
+	for i in range(pts.size() - 1):
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		var seg: float = a.distance_to(b)
+		if want <= seg:
+			if want > 0.5:
+				out.append(a.lerp(b, want / seg))
+			return out
+		want -= seg
+		out.append(b)
+	return out
+
+
+## Outline of a symbol in the XZ plane, centred on 0 and `size` in radius.
+func _symbol_outline(kind: String, size: float) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	match kind:
+		"triangle":
+			for i in range(3):
+				var a: float = -PI / 2.0 + TAU * i / 3.0
+				pts.append(Vector2(cos(a), sin(a) + 0.18) * size * 1.12)
+		"square":
+			var h: float = size * 0.78
+			pts = PackedVector2Array(
+				[Vector2(-h, -h), Vector2(h, -h), Vector2(h, h), Vector2(-h, h)]
+			)
+		"diamond":
+			pts = PackedVector2Array(
+				[
+					Vector2(0, -size * 1.1),
+					Vector2(size * 0.78, 0),
+					Vector2(0, size * 1.1),
+					Vector2(-size * 0.78, 0)
+				]
+			)
+		"star":
+			for i in range(10):
+				var a: float = -PI / 2.0 + TAU * i / 10.0
+				var rr: float = size * (1.1 if i % 2 == 0 else 0.46)
+				pts.append(Vector2(cos(a), sin(a) + 0.08) * rr)
+		"heart":
+			for i in range(40):
+				var t: float = TAU * i / 40.0
+				var x: float = 16.0 * pow(sin(t), 3)
+				var y: float = 13.0 * cos(t) - 5.0 * cos(2 * t) - 2.0 * cos(3 * t) - cos(4 * t)
+				pts.append(Vector2(x, -y - 2.6) * size / 15.0)
+		"plus":
+			var a2: float = size * 0.95
+			var b2: float = size * 0.34
+			pts = PackedVector2Array(
+				[
+					Vector2(-b2, -a2),
+					Vector2(b2, -a2),
+					Vector2(b2, -b2),
+					Vector2(a2, -b2),
+					Vector2(a2, b2),
+					Vector2(b2, b2),
+					Vector2(b2, a2),
+					Vector2(-b2, a2),
+					Vector2(-b2, b2),
+					Vector2(-a2, b2),
+					Vector2(-a2, -b2),
+					Vector2(-b2, -b2)
+				]
+			)
+		"moon":
+			var outer := PackedVector2Array()
+			var bite := PackedVector2Array()
+			for i in range(32):
+				var a3: float = TAU * i / 32.0
+				outer.append(Vector2(cos(a3), sin(a3)) * size)
+				bite.append(Vector2(cos(a3) * 0.8 + 0.5, sin(a3) * 0.8 - 0.15) * size)
+			var parts: Array = Geometry2D.clip_polygons(outer, bite)
+			pts = parts[0] if not parts.is_empty() else outer
+		_:  # circle
+			for i in range(32):
+				var a5: float = TAU * i / 32.0
+				pts.append(Vector2(cos(a5), sin(a5)) * size * 0.85)
+	return pts
+
+
+func _symbol_mesh(kind: String, size: float) -> ArrayMesh:
+	var outline: PackedVector2Array = _symbol_outline(kind, size)
+	var tris: PackedInt32Array = Geometry2D.triangulate_polygon(outline)
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	for p in outline:
+		verts.append(Vector3(p.x, 0, p.y))
+		normals.append(Vector3.UP)
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_INDEX] = tris
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
 
 
 func _tube_material(c: Color, glow: float) -> StandardMaterial3D:

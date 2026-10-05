@@ -18,6 +18,9 @@ var input_mapper: Callable
 
 signal pair_completed
 signal all_paths_changed
+## A drag that started on a ball ended without connecting. The path is what
+## was drawn, so the board can show it springing back (rule 31).
+signal drag_failed(ball: Node2D, path: Array)
 
 
 func setup(b: Array) -> void:
@@ -56,17 +59,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		_continue_drag(pos)
 
 
+## A touch anywhere inside a ball's padded touch area starts from that ball;
+## the nearest ball wins (rule 12).
 func _start_drag(p: Vector2) -> void:
-	for b in balls:
-		if b.contains_point(p):
-			paths.erase(b.color_name)
-			current_color = b.color_name
-			current_start_ball = b
-			current_path = [b.position]
-			emit_signal("all_paths_changed")
-			revision += 1
-			queue_redraw()
-			return
+	var b: Node2D = _nearest_ball(p, null, "")
+	if b != null:
+		paths.erase(b.color_name)
+		current_color = b.color_name
+		current_start_ball = b
+		current_path = [b.position]
+		emit_signal("all_paths_changed")
+		revision += 1
+		queue_redraw()
+		return
 	current_start_ball = null
 	current_color = ""
 	current_path.clear()
@@ -88,17 +93,7 @@ func _continue_drag(p: Vector2) -> void:
 func _end_drag(p: Vector2) -> void:
 	if current_start_ball == null:
 		return
-	var best_ball: Node2D = null
-	var best_dist: float = INF
-	for b in balls:
-		if b == current_start_ball:
-			continue
-		if b.color_name != current_color:
-			continue
-		var d: float = b.position.distance_to(p)
-		if d <= b.radius * ENDPOINT_SNAP_FACTOR and d < best_dist:
-			best_ball = b
-			best_dist = d
+	var best_ball: Node2D = _nearest_ball(p, current_start_ball, current_color)
 	if best_ball != null:
 		var last: Vector2 = current_path[current_path.size() - 1]
 		if not _segment_blocked(last, best_ball.position, true, best_ball):
@@ -107,7 +102,28 @@ func _end_drag(p: Vector2) -> void:
 			_reset_drag()
 			emit_signal("pair_completed")
 			return
+	var failed_ball: Node2D = current_start_ball
+	var failed_path: Array = current_path.duplicate()
 	_reset_drag()
+	drag_failed.emit(failed_ball, failed_path)
+
+
+## Nearest ball whose touch area holds p. A drag ends on a ball when the
+## finger lifts inside its touch area or within the old 1.6 x radius snap.
+func _nearest_ball(p: Vector2, skip: Node2D, only_color: String) -> Node2D:
+	var best_ball: Node2D = null
+	var best_dist: float = INF
+	for b in balls:
+		if b == skip:
+			continue
+		if only_color != "" and b.color_name != only_color:
+			continue
+		var reach: float = maxf(b.hit_radius(), b.radius * ENDPOINT_SNAP_FACTOR)
+		var d: float = b.position.distance_to(p)
+		if d <= reach and d < best_dist:
+			best_ball = b
+			best_dist = d
+	return best_ball
 
 
 func _reset_drag() -> void:
