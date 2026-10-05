@@ -25,7 +25,8 @@ const SYMBOL_MAP: Dictionary = {
 const SAVE_PATH: String = "user://ball_connect_save.json"
 ## Version 2 (2026-10-05): three easy levels were put in front, so old
 ## level N >= 2 is now level N + 3 and old level 1 maps to the new level 1.
-const SAVE_VERSION: int = 2
+## Version 3 adds "board": the finished lines of an unfinished level (rule 28).
+const SAVE_VERSION: int = 3
 const LEVELS_ADDED_IN_V2: int = 3
 ## The next-level arrow ignores taps until this long after a win, so the
 ## finger that finished the last line cannot skip the win screen by accident.
@@ -50,6 +51,8 @@ var ball_scene: PackedScene = preload("res://scenes/Ball.tscn")
 var won: bool = false
 var highest_level: int = 1
 var _idle_since_ms: int = 0
+## Lines of the level the player left, from the save; used once by load_level.
+var _saved_board: Dictionary = {}
 
 @onready var ball_layer: Node2D = $BallLayer
 @onready var line_drawer: Node2D = $LineDrawer
@@ -68,6 +71,7 @@ func _ready() -> void:
 	_style_ui()
 	line_drawer.pair_completed.connect(_on_pair_completed)
 	line_drawer.drag_failed.connect(board_3d.play_fail)
+	line_drawer.line_cleared.connect(_save_board)
 	reset_button.pressed.connect(_on_reset_pressed)
 	next_button.pressed.connect(_advance)
 	load_level(current_level)
@@ -75,6 +79,7 @@ func _ready() -> void:
 
 func _on_reset_pressed() -> void:
 	load_level(current_level)
+	_save_board()
 
 
 ## Any touch stops the idle hint and restarts the idle clock.
@@ -160,6 +165,17 @@ func load_level(n: int) -> void:
 	line_drawer.board_rect = _visible_board_rect()
 	board_3d.setup(balls)
 	_idle_since_ms = Time.get_ticks_msec()
+	if int(_saved_board.get("level", -1)) == n:
+		var saved: Variant = _saved_board.get("paths")
+		var ok: bool = saved is Dictionary and line_drawer.restore_paths(saved)
+		if ok and line_drawer.completed_pair_count() == _total_pairs():
+			line_drawer.setup(balls)  # a full board would be a win: start fresh
+			ok = false
+		if ok:
+			print("Save: board restored with %d lines" % line_drawer.completed_pair_count())
+		else:
+			print("Save: board not restored, fresh board")
+	_saved_board = {}
 
 
 ## Board px rectangle that is on screen on every row (the camera tilts, so the
@@ -185,7 +201,9 @@ func _total_pairs() -> int:
 
 
 func _on_pair_completed() -> void:
-	if line_drawer.completed_pair_count() == _total_pairs():
+	if line_drawer.completed_pair_count() < _total_pairs():
+		_save_board()
+	elif line_drawer.completed_pair_count() == _total_pairs():
 		won = true
 		line_drawer.enabled = false
 		reset_button.visible = false
@@ -215,8 +233,13 @@ func _notification(what: int) -> void:
 		_save_progress(_next_level() if won else current_level)
 
 
-# Level progress survives app restarts. Board state is not saved: the
-# player resumes at the start of the level they were on.
+func _save_board() -> void:
+	if not won:
+		_save_progress(current_level)
+
+
+# Level progress and the finished lines of an unfinished level survive app
+# restarts (rule 28). A line still being drawn is not saved.
 func _save_progress(level: int) -> void:
 	highest_level = maxi(highest_level, level)
 	var f: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -226,6 +249,14 @@ func _save_progress(level: int) -> void:
 	var data: Dictionary = {
 		"version": SAVE_VERSION, "current_level": level, "highest_level": highest_level
 	}
+	if not won and level == current_level and line_drawer.completed_pair_count() > 0:
+		var lines: Dictionary = {}
+		for color_key in line_drawer.paths:
+			var pts: Array = []
+			for v in line_drawer.paths[color_key]:
+				pts.append([snappedf(v.x, 0.01), snappedf(v.y, 0.01)])
+			lines[color_key] = pts
+		data["board"] = {"level": level, "paths": lines}
 	f.store_string(JSON.stringify(data))
 	f.close()
 
@@ -257,6 +288,9 @@ func _load_progress() -> void:
 		if (best is float or best is int)
 		else current_level
 	)
+	var board: Variant = data.get("board")
+	if not old_format and board is Dictionary:
+		_saved_board = board
 	print("Save: resuming at level %d (highest %d)" % [current_level, highest_level])
 
 

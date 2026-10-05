@@ -177,6 +177,11 @@ screenshots/
   one in hand, else the closest unconnected pair) swells and glows 3 times at
   1 pulse per second. No sound, no text; any touch stops it.
 - Win condition: all colors completed. Tap the big green arrow to advance.
+- Save (`user://ball_connect_save.json`, version 3): level reached plus the
+  finished lines of an unfinished level, written on every finished or cleared
+  line, on restart and when the app pauses or closes. On start the lines come
+  back if the level matches; each one is replayed under the drag rules, and a
+  corrupt or missing save gives a fresh board. Version 1 and 2 saves still load.
 
 Tweak in `scripts/LineDrawer.gd`:
 - `SAMPLE_DIST` — finer = smoother curves, more CPU

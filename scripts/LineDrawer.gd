@@ -1,5 +1,8 @@
 extends Node2D
 
+## A finished line was removed (a touch on one of its balls).
+signal line_cleared
+
 enum Press { NONE, PENDING, DRAG, IGNORE }
 
 const SAMPLE_DIST: float = 10.0
@@ -70,6 +73,19 @@ func clear_all() -> void:
 
 func completed_pair_count() -> int:
 	return paths.size()
+
+
+## Puts saved lines back ({"red": [[x, y], ...]}), replaying each one under the
+## same rules a drag obeys. Anything that does not fit the board, a line that
+## does not join its own two balls or crosses another: false and an empty board.
+func restore_paths(saved: Dictionary) -> bool:
+	clear_all()
+	for color_key in saved:
+		if not _restore_line(String(color_key), saved[color_key]):
+			clear_all()
+			return false
+	_reset_drag()
+	return true
 
 
 ## [[x, y], ...] with numbers only, at least two points; else [].
@@ -474,7 +490,8 @@ func _heap_pop(heap: Array) -> Array:
 func _start_drag(p: Vector2) -> void:
 	var b: Node2D = _nearest_ball(p, null, "")
 	if b != null:
-		paths.erase(b.color_name)
+		if paths.erase(b.color_name):
+			line_cleared.emit()
 		current_color = b.color_name
 		current_start_ball = b
 		current_path = [b.position]
