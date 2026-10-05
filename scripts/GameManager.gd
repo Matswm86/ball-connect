@@ -11,6 +11,9 @@ const COLOR_MAP: Dictionary = {
 	"purple": Color(0.66, 0.32, 0.95)
 }
 
+const SAVE_PATH: String = "user://ball_connect_save.json"
+const SAVE_VERSION: int = 1
+
 @export var levels_path: String = "res://data/levels/"
 @export var start_level: int = 1
 @export var max_level: int = 5
@@ -19,6 +22,7 @@ var current_level: int = 1
 var balls: Array = []
 var ball_scene: PackedScene = preload("res://scenes/Ball.tscn")
 var won: bool = false
+var highest_level: int = 1
 
 @onready var ball_layer: Node2D = $BallLayer
 @onready var line_drawer: Node2D = $LineDrawer
@@ -31,6 +35,7 @@ var won: bool = false
 
 func _ready() -> void:
 	current_level = start_level
+	_load_progress()
 	board_3d.line_drawer = line_drawer
 	line_drawer.input_mapper = board_3d.screen_to_board
 	_style_ui()
@@ -99,6 +104,7 @@ func _on_pair_completed() -> void:
 		win_label.visible = true
 		reset_button.visible = false
 		board_3d.celebrate()
+		_save_progress(_next_level())
 		win_label.modulate.a = 0.0
 		create_tween().tween_property(win_label, "modulate:a", 1.0, 0.5).set_delay(0.4)
 
@@ -111,10 +117,60 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _advance() -> void:
-	current_level += 1
-	if current_level > max_level:
-		current_level = 1
+	current_level = _next_level()
 	load_level(current_level)
+
+
+func _next_level() -> int:
+	return 1 if current_level + 1 > max_level else current_level + 1
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_save_progress(_next_level() if won else current_level)
+
+
+# Level progress survives app restarts. Board state is not saved: the
+# player resumes at the start of the level they were on.
+func _save_progress(level: int) -> void:
+	highest_level = maxi(highest_level, level)
+	var f: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if f == null:
+		push_warning("Save failed: %s" % error_string(FileAccess.get_open_error()))
+		return
+	var data: Dictionary = {
+		"version": SAVE_VERSION, "current_level": level, "highest_level": highest_level
+	}
+	f.store_string(JSON.stringify(data))
+	f.close()
+
+
+# Missing, unreadable or corrupt save: keep the defaults and start fresh.
+func _load_progress() -> void:
+	if not FileAccess.file_exists(SAVE_PATH):
+		return
+	var f: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if f == null:
+		return
+	var raw: String = f.get_as_text()
+	f.close()
+	var json := JSON.new()
+	if json.parse(raw) != OK or not (json.data is Dictionary):
+		push_warning("Save file unreadable, starting fresh")
+		return
+	var data: Dictionary = json.data
+	var level: Variant = data.get("current_level")
+	if not (level is float or level is int):
+		push_warning("Save file has no level, starting fresh")
+		return
+	current_level = clampi(int(level), 1, max_level)
+	var best: Variant = data.get("highest_level", current_level)
+	highest_level = (
+		clampi(int(best), current_level, max_level)
+		if (best is float or best is int)
+		else current_level
+	)
+	print("Save: resuming at level %d (highest %d)" % [current_level, highest_level])
 
 
 func _style_ui() -> void:
