@@ -159,6 +159,12 @@ screenshots/
   path's earlier segments, or passes within 60% of any non-endpoint ball's
   radius.
 - Tap-and-drag from a ball that already has a path replaces that path.
+- Tap instead of drag (WCAG 2.5.1): tap a ball and it floats up; then tap its
+  partner (straight line, or the line with the fewest bends that stays clear
+  of other balls; no route = spring back) or tap the marked cells next to the
+  line end one by one (160 board px cells on the floor dots; tapping a cell
+  already on the line takes it back there). Tap the ball again to let go.
+  A touch that moves less than 30 px is a tap, more is a drag.
 - Every ball has a 120 px touch radius (`HIT_RADIUS` in `scripts/Ball.gd`),
   larger than the drawn ball; a drag starts from the nearest ball in reach.
 - Release inside the matching ball's touch area completes the pair; release

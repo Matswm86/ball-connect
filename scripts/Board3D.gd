@@ -22,6 +22,12 @@ const SYMBOL_COLOR: Color = Color(0.141, 0.129, 0.114)  # DESIGN.md ink
 const SPRING_BACK_TIME: float = 0.45
 const SHAKE_TIME: float = 0.4
 const SHAKE_AMOUNT: float = 0.09
+## A ball picked by a tap floats up and glows until the line is finished.
+const TAP_LIFT: float = 0.35
+const TAP_GLOW: float = 0.7
+## Small discs on the cells the tapped line can grow into next.
+const MARKER_RADIUS: float = 0.2
+const MAX_MARKERS: int = 8
 
 var line_drawer: Node2D = null
 
@@ -40,6 +46,8 @@ var _spring_tube: MeshInstance3D
 var _spring_path: Array = []
 var _spring_color: Color = Color.WHITE
 var _spring_t: float = 0.0
+var _markers: Array = []  # MeshInstance3D pool for tap targets
+var _lift: Dictionary = {}  # Ball (Node2D) -> current tap lift in world units
 
 
 func _ready() -> void:
@@ -60,6 +68,19 @@ func _ready() -> void:
 	add_child(_drag_head)
 	_spring_tube = MeshInstance3D.new()
 	add_child(_spring_tube)
+	var disc := CylinderMesh.new()
+	disc.top_radius = MARKER_RADIUS
+	disc.bottom_radius = MARKER_RADIUS
+	disc.height = 0.02
+	disc.radial_segments = 24
+	disc.rings = 1
+	for i in range(MAX_MARKERS):
+		var m := MeshInstance3D.new()
+		m.mesh = disc
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		m.visible = false
+		add_child(m)
+		_markers.append(m)
 
 
 # ---------------------------------------------------------------- coordinates
@@ -199,6 +220,7 @@ func setup(balls: Array) -> void:
 	_ball_nodes.clear()
 	_ball_materials.clear()
 	_connected.clear()
+	_lift.clear()
 	for child in _tube_root.get_children():
 		child.queue_free()
 	_drag_tube.mesh = null
@@ -346,6 +368,7 @@ func _process(delta: float) -> void:
 
 func _animate_balls(delta: float) -> void:
 	var active: Node2D = line_drawer.current_start_ball
+	var tapped: bool = line_drawer.tap_selected
 	var k: float = 1.0 - exp(-delta * 14.0)
 	for b in _balls:
 		var holder: Node3D = _ball_nodes[b]
@@ -354,12 +377,18 @@ func _animate_balls(delta: float) -> void:
 		var sphere: Node3D = holder.get_node("Sphere")
 		var target: float = 1.14 if b == active else 1.0
 		sphere.scale = sphere.scale.lerp(Vector3.ONE * target, k)
+		# Lift is added as a delta so the win bounce tween keeps working.
+		var lift_to: float = TAP_LIFT if (tapped and b == active) else 0.0
+		var lift_was: float = _lift.get(b, 0.0)
+		var lift_now: float = lerpf(lift_was, lift_to, k)
+		sphere.position.y += lift_now - lift_was
+		_lift[b] = lift_now
 		var mat: StandardMaterial3D = _ball_materials[b]
 		var glow: float = 0.08
 		if _connected.has(b.color_name):
 			glow = 0.55 + 0.15 * sin(_time * 3.0 + b.position.x * 0.01)
 		elif b == active:
-			glow = 0.5
+			glow = TAP_GLOW if tapped else 0.5
 		mat.emission_energy_multiplier = lerpf(mat.emission_energy_multiplier, glow, k)
 
 
@@ -393,6 +422,24 @@ func _sync_paths() -> void:
 	else:
 		_drag_tube.mesh = null
 		_drag_head.visible = false
+	_sync_markers()
+
+
+func _sync_markers() -> void:
+	var targets: Array = line_drawer.tap_targets()
+	var mat: StandardMaterial3D = null
+	if not targets.is_empty():
+		var c: Color = line_drawer._color_for(line_drawer.current_color)
+		mat = StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = Color(c.lightened(0.25), 0.55)
+	for i in range(_markers.size()):
+		var m: MeshInstance3D = _markers[i]
+		m.visible = i < targets.size()
+		if m.visible:
+			m.position = px_to_world(targets[i], 0.03)
+			m.material_override = mat
 
 
 # ---------------------------------------------------------------- mesh helpers

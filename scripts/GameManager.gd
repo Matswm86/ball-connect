@@ -34,6 +34,8 @@ const NEXT_ARROW_DELAY: float = 0.9
 ## 13.7 mm at 430 dpi; the next arrow is 360 px = 22.9 / 21.3 mm.
 const RESTART_HIT: float = 232.0
 const NEXT_HIT: float = 360.0
+## Board px kept free inside the visible screen for tap cells and routes.
+const BOARD_MARGIN: float = 24.0
 
 @export var levels_path: String = "res://data/levels/"
 @export var start_level: int = 1
@@ -111,7 +113,23 @@ func load_level(n: int) -> void:
 		balls.append(ball)
 
 	line_drawer.setup(balls)
+	line_drawer.board_rect = _visible_board_rect()
 	board_3d.setup(balls)
+
+
+## Board px rectangle that is on screen on every row (the camera tilts, so the
+## visible board is a slight trapezoid), less a small margin.
+func _visible_board_rect() -> Rect2:
+	var vs: Vector2 = get_viewport().get_visible_rect().size
+	var tl: Vector2 = board_3d.screen_to_board(Vector2.ZERO)
+	var tr: Vector2 = board_3d.screen_to_board(Vector2(vs.x, 0))
+	var bl: Vector2 = board_3d.screen_to_board(Vector2(0, vs.y))
+	var br: Vector2 = board_3d.screen_to_board(vs)
+	var left: float = maxf(tl.x, bl.x) + BOARD_MARGIN
+	var right: float = minf(tr.x, br.x) - BOARD_MARGIN
+	var top: float = maxf(tl.y, tr.y) + BOARD_MARGIN
+	var bottom: float = minf(bl.y, br.y) - BOARD_MARGIN
+	return Rect2(left, top, right - left, bottom - top)
 
 
 func _total_pairs() -> int:
