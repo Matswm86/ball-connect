@@ -173,6 +173,13 @@ screenshots/
   diamond, plus, moon) so pairs match by shape too.
 - A round **restart** icon in the top-right corner reloads the current level.
   It is hidden on the win screen. Level progress shows as dots, not text.
+- Notch / punch-hole camera: on phones the restart disc and the level dots
+  move below `DisplayServer.get_display_safe_area()`; the restart touch area
+  still runs to the top-right corner, and where it then reaches into a ball's
+  touch area the ball gets the touch.
+- `tests/capture_extras.tscn` checks tap mode, the idle hint, the board save
+  and a fake 120 px cutout with real touch events (`CAPTURE_PHASE` = play,
+  restore, bad, inset).
 - Idle hint: after 8 s without a touch on an unsolved board, one pair (the
   one in hand, else the closest unconnected pair) swells and glows 3 times at
   1 pulse per second. No sound, no text; any touch stops it.

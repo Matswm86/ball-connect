@@ -14,6 +14,9 @@ const GREEN_SOFT: Color = Color(0.890, 0.941, 0.918)
 @export var disc_radius: float = 68.0
 ## Disc centre inside the control; negative means the middle of the rect.
 @export var disc_center: Vector2 = Vector2(-1, -1)
+## Optional: returns true for a screen point another target owns (a ball's
+## touch area); the button then lets that touch through.
+var pass_through: Callable
 
 
 func _ready() -> void:
@@ -24,6 +27,12 @@ func _ready() -> void:
 		add_theme_stylebox_override(state, StyleBoxEmpty.new())
 	button_down.connect(queue_redraw)
 	button_up.connect(queue_redraw)
+
+
+func _has_point(point: Vector2) -> bool:
+	if not Rect2(Vector2.ZERO, size).has_point(point):
+		return false
+	return not (pass_through.is_valid() and pass_through.call(get_global_transform() * point))
 
 
 func _center() -> Vector2:

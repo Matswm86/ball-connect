@@ -38,6 +38,9 @@ const NEXT_HIT: float = 360.0
 ## Idle hint (rule 18): after this long without a touch on an unsolved
 ## board, one pair pulses; at most once per this period.
 const IDLE_HINT_DELAY: float = 8.0
+## Top of the restart disc and level dots; a camera cutout deeper than this
+## pushes them down by the difference (same rule as the MWM Play home disc).
+const TOP_ROW_CLEAR: float = 36.0
 ## Board px kept free inside the visible screen for tap cells and routes.
 const BOARD_MARGIN: float = 24.0
 
@@ -50,6 +53,8 @@ var balls: Array = []
 var ball_scene: PackedScene = preload("res://scenes/Ball.tscn")
 var won: bool = false
 var highest_level: int = 1
+## Test hook: a fake top safe-area inset in window px; < 0 = ask the display.
+var fake_safe_top: float = -1.0
 var _idle_since_ms: int = 0
 ## Lines of the level the player left, from the save; used once by load_level.
 var _saved_board: Dictionary = {}
@@ -73,7 +78,10 @@ func _ready() -> void:
 	line_drawer.drag_failed.connect(board_3d.play_fail)
 	line_drawer.line_cleared.connect(_save_board)
 	reset_button.pressed.connect(_on_reset_pressed)
+	reset_button.pass_through = _ball_at_screen
 	next_button.pressed.connect(_advance)
+	get_viewport().size_changed.connect(apply_safe_area)
+	apply_safe_area()
 	load_level(current_level)
 
 
@@ -310,22 +318,7 @@ func _style_ui() -> void:
 	hint_label.offset_top = -110
 	hint_label.offset_bottom = -30
 
-	# Dots sit between the MWM Play home corner (top-left 232 px) and restart.
-	level_dots.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	level_dots.offset_left = -300
-	level_dots.offset_right = 300
-	level_dots.offset_top = 64
-	level_dots.offset_bottom = 144
-	level_dots.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	# Restart: touch area runs to the top-right screen corner (rule 7).
-	reset_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	reset_button.offset_left = -RESTART_HIT
-	reset_button.offset_right = 0
-	reset_button.offset_top = 0
-	reset_button.offset_bottom = RESTART_HIT
-	reset_button.disc_radius = 68.0
-	reset_button.disc_center = Vector2(RESTART_HIT - 104.0, 104.0)
+	apply_safe_area()
 
 	next_button.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	next_button.offset_left = -NEXT_HIT * 0.5
@@ -333,3 +326,46 @@ func _style_ui() -> void:
 	next_button.offset_top = -NEXT_HIT * 0.5
 	next_button.offset_bottom = NEXT_HIT * 0.5
 	next_button.disc_radius = NEXT_HIT * 0.5 - 20.0
+
+
+## A deep cutout pushes the restart area down into a top ball's touch area
+## on dense levels; there the ball wins the touch.
+func _ball_at_screen(p: Vector2) -> bool:
+	return line_drawer._nearest_ball(board_3d.screen_to_board(p), null, "") != null
+
+
+## Top-row controls (restart, level dots) move below a notch or punch-hole
+## camera; the restart touch area still runs to the top-right screen corner
+## (rule 7). Uses the display safe area on phones, or fake_safe_top in tests.
+func apply_safe_area() -> void:
+	var dy: float = maxf(0.0, safe_top_inset() - TOP_ROW_CLEAR)
+	# Dots sit between the MWM Play home corner (top-left 232 px) and restart.
+	level_dots.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	level_dots.offset_left = -300
+	level_dots.offset_right = 300
+	level_dots.offset_top = 64 + dy
+	level_dots.offset_bottom = 144 + dy
+	level_dots.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	reset_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	reset_button.offset_left = -RESTART_HIT
+	reset_button.offset_right = 0
+	reset_button.offset_top = 0
+	reset_button.offset_bottom = RESTART_HIT + dy
+	reset_button.disc_radius = 68.0
+	reset_button.disc_center = Vector2(RESTART_HIT - 104.0, 104.0 + dy)
+	reset_button.queue_redraw()
+
+
+## Depth of the top screen cutout in viewport px (0 on desktop and on phones
+## without a cutout in the drawn area).
+func safe_top_inset() -> float:
+	var top_px: float = fake_safe_top
+	if top_px < 0.0:
+		if not OS.has_feature("mobile"):
+			return 0.0
+		top_px = float(DisplayServer.get_display_safe_area().position.y)
+	var win: Vector2i = DisplayServer.window_get_size()
+	if win.y <= 0:
+		return 0.0
+	return maxf(0.0, top_px * get_viewport().get_visible_rect().size.y / float(win.y))
