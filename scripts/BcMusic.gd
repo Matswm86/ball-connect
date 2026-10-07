@@ -51,7 +51,8 @@ func set_enabled(on: bool) -> void:
 	if player.stream == null:
 		return
 	if on:
-		if not player.playing:
+		# `playing` is false while paused; a paused stream resumes in place.
+		if not player.has_stream_playback():
 			player.play()
 		player.stream_paused = _in_background
 		_fade_to(BASE_DB, FADE_IN_S, false)
@@ -60,7 +61,7 @@ func set_enabled(on: bool) -> void:
 
 
 func is_audible() -> bool:
-	return enabled and player.playing and not player.stream_paused
+	return enabled and player.has_stream_playback() and not player.stream_paused
 
 
 func _fade_to(db: float, secs: float, pause_after: bool) -> void:
@@ -80,7 +81,7 @@ func _notification(what: int) -> void:
 				player.stream_paused = true
 		NOTIFICATION_APPLICATION_RESUMED, NOTIFICATION_APPLICATION_FOCUS_IN:
 			_in_background = false
-			if player != null and enabled and player.playing:
+			if player != null and enabled and player.has_stream_playback():
 				player.stream_paused = false
 				player.volume_db = SILENT_DB
 				_fade_to(BASE_DB, 1.0, false)

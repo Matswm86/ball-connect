@@ -57,9 +57,10 @@ func _draw() -> void:
 		draw_circle(c, r - 2.5, INK, false, 5.0, true)
 		_draw_note(c, r, MUTED_INK if off else INK)
 		if off:
-			var d := Vector2(r, -r) * 0.52
-			draw_line(c - d, c + d, CARD, r * 0.26, true)
-			draw_line(c - d, c + d, INK, r * 0.13, true)
+			# Slash top-left to bottom-right: crosses only the stem, the head stays clear.
+			var d := Vector2(r, r) * 0.55
+			draw_line(c - d, c + d, MUTED_CARD, r * 0.2, true)
+			draw_line(c - d, c + d, INK, r * 0.1, true)
 	else:
 		draw_circle(c, r, GREEN_SOFT if down else CARD)
 		draw_circle(c, r - 2.5, INK, false, 5.0, true)

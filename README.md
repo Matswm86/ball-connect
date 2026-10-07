@@ -184,8 +184,15 @@ screenshots/
   one in hand, else the closest unconnected pair) swells and glows 3 times at
   1 pulse per second. No sound, no text; any touch stops it.
 - Win condition: all colors completed. Tap the big green arrow to advance.
-- Save (`user://ball_connect_save.json`, version 3): level reached plus the
-  finished lines of an unfinished level, written on every finished or cleared
+- Music: one calm 2-minute loop (`assets/music/calm_loop.ogg`, rendered by
+  `tools/render_music.py`, 64 BPM pads and soft bells, no drums) on the
+  "Music" bus, fading in over 3 s at -12 dB. It runs on across level changes
+  and pauses while the app is in the background. A round music-note switch
+  left of restart turns it off and on (saved). Inside MWM Play
+  (`Engine.has_meta(&"mwm_play_shell")`) the switch is hidden and the shell's
+  Music setting decides.
+- Save (`user://ball_connect_save.json`, version 3): level reached, the music
+  switch, plus the finished lines of an unfinished level, written on every finished or cleared
   line, on restart and when the app pauses or closes. On start the lines come
   back if the level matches; each one is replayed under the drag rules, and a
   corrupt or missing save gives a fresh board. Version 1 and 2 saves still load.
