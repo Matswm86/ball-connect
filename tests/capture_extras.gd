@@ -8,6 +8,7 @@ extends Node
 ##   restore - a second start: the level 4 lines must come back
 ##   bad     - corrupt and old saves start a fresh board
 ##   inset   - fake 120 px top cutout on levels 1 and 8
+##   music   - music switch: tap off, saved, tap on; then hidden in the shell
 
 var out_dir: String = OS.get_environment("CAPTURE_DIR")
 var game: Node
@@ -34,6 +35,8 @@ func _ready() -> void:
 			await _phase_restore()
 		"inset":
 			await _phase_inset()
+		"music":
+			await _phase_music()
 	get_tree().quit()
 
 
@@ -166,6 +169,78 @@ func _phase_play() -> void:
 	await _shot("14_level4_before_close")
 	game.propagate_notification(NOTIFICATION_WM_CLOSE_REQUEST)
 	print("SAVE file: ", FileAccess.get_file_as_string(game.SAVE_PATH).left(160), "...")
+
+
+func _phase_music() -> void:
+	var btn: Control = game.get_node("UI/MusicButton")
+	var r: Rect2 = btn.get_global_rect()
+	print("MUSIC button rect %s visible=%s kind=%s" % [r, btn.visible, btn.kind])
+	print(
+		(
+			"MUSIC at start: on=%s audible=%s bus=%s"
+			% [game.music_on, game.music.is_audible(), game.music.player.bus]
+		)
+	)
+	await _frames(200)  # fade-in is 3 s
+	print("MUSIC after fade: volume_db=%.1f" % game.music.player.volume_db)
+	await _shot("40_music_on")
+	await _tap(r.get_center())
+	await _frames(60)
+	print(
+		(
+			"MUSIC after tap: on=%s kind=%s paused=%s"
+			% [game.music_on, btn.kind, game.music.player.stream_paused]
+		)
+	)
+	var f := FileAccess.open("user://ball_connect_save.json", FileAccess.READ)
+	print("MUSIC save: ", f.get_as_text())
+	f.close()
+	await _shot("41_music_off")
+	var pos: float = game.music.player.get_playback_position()
+	await _tap(r.get_center())
+	await _frames(30)
+	print(
+		(
+			"MUSIC after 2nd tap: on=%s audible=%s resumed from %.2f s (now %.2f s)"
+			% [
+				game.music_on,
+				game.music.is_audible(),
+				pos,
+				game.music.player.get_playback_position()
+			]
+		)
+	)
+	var before_level: float = game.music.player.get_playback_position()
+	game.load_level(2)
+	await _frames(10)
+	print(
+		(
+			"MUSIC across level change: %.2f s -> %.2f s, playing=%s"
+			% [before_level, game.music.player.get_playback_position(), game.music.player.playing]
+		)
+	)
+	game.music.notification(NOTIFICATION_APPLICATION_PAUSED)
+	print("MUSIC app paused: stream_paused=%s" % game.music.player.stream_paused)
+	game.music.notification(NOTIFICATION_APPLICATION_RESUMED)
+	print("MUSIC app resumed: stream_paused=%s" % game.music.player.stream_paused)
+	# Inside MWM Play: own switch hidden, music plays even with the saved switch off.
+	await _tap(r.get_center())
+	await _frames(30)
+	var scene_path: String = game.scene_file_path
+	game.queue_free()
+	await _frames(2)
+	Engine.set_meta(&"mwm_play_shell", true)
+	game = load(scene_path).instantiate()
+	add_child(game)
+	await _frames(40)
+	print(
+		(
+			"SHELL: button visible=%s saved music_on=%s audible=%s"
+			% [game.get_node("UI/MusicButton").visible, game.music_on, game.music.is_audible()]
+		)
+	)
+	await _shot("42_in_shell")
+	Engine.remove_meta(&"mwm_play_shell")
 
 
 func _phase_restore() -> void:

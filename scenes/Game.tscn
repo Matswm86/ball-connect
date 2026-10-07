@@ -46,6 +46,13 @@ offset_bottom = 232.0
 script = ExtResource("4_rib")
 kind = "restart"
 
+[node name="MusicButton" type="Button" parent="UI"]
+offset_left = 648.0
+offset_right = 848.0
+offset_bottom = 232.0
+script = ExtResource("4_rib")
+kind = "music_on"
+
 [node name="NextButton" type="Button" parent="UI"]
 offset_left = 360.0
 offset_top = 780.0

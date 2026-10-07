@@ -43,6 +43,12 @@ const IDLE_HINT_DELAY: float = 8.0
 const TOP_ROW_CLEAR: float = 36.0
 ## Board px kept free inside the visible screen for tap cells and routes.
 const BOARD_MARGIN: float = 24.0
+## Music on/off touch area, left of the restart area in the top row.
+const MUSIC_HIT: float = 200.0
+## Kept free in the top-left corner for the MWM Play home disc.
+const HOME_CORNER: float = 232.0
+## Set by the MWM Play shell: it owns sound and music, so the own switch hides.
+const SHELL_META := &"mwm_play_shell"
 
 @export var levels_path: String = "res://data/levels/"
 @export var start_level: int = 1
@@ -55,6 +61,10 @@ var won: bool = false
 var highest_level: int = 1
 ## Test hook: a fake top safe-area inset in window px; < 0 = ask the display.
 var fake_safe_top: float = -1.0
+## Player's music switch (saved); inside MWM Play the shell decides instead.
+var music_on: bool = true
+var in_shell: bool = false
+var music: BcMusic
 var _idle_since_ms: int = 0
 ## Lines of the level the player left, from the save; used once by load_level.
 var _saved_board: Dictionary = {}
@@ -66,11 +76,20 @@ var _saved_board: Dictionary = {}
 @onready var hint_label: Label = $UI/HintLabel
 @onready var reset_button: Button = $UI/ResetButton
 @onready var next_button: Button = $UI/NextButton
+@onready var music_button: Button = $UI/MusicButton
 
 
 func _ready() -> void:
 	current_level = start_level
+	in_shell = Engine.has_meta(SHELL_META) and bool(Engine.get_meta(SHELL_META))
 	_load_progress()
+	music = BcMusic.new()
+	music.name = "Music"
+	add_child(music)
+	music_button.visible = not in_shell
+	music_button.pass_through = _ball_at_screen
+	music_button.pressed.connect(_on_music_pressed)
+	_apply_music()
 	board_3d.line_drawer = line_drawer
 	line_drawer.input_mapper = board_3d.screen_to_board
 	_style_ui()
@@ -83,6 +102,18 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(apply_safe_area)
 	apply_safe_area()
 	load_level(current_level)
+
+
+func _on_music_pressed() -> void:
+	music_on = not music_on
+	_apply_music()
+	_save_progress(_next_level() if won else current_level)
+
+
+func _apply_music() -> void:
+	music.set_enabled(in_shell or music_on)
+	music_button.kind = "music_on" if music_on else "music_off"
+	music_button.queue_redraw()
 
 
 func _on_reset_pressed() -> void:
@@ -255,7 +286,10 @@ func _save_progress(level: int) -> void:
 		push_warning("Save failed: %s" % error_string(FileAccess.get_open_error()))
 		return
 	var data: Dictionary = {
-		"version": SAVE_VERSION, "current_level": level, "highest_level": highest_level
+		"version": SAVE_VERSION,
+		"current_level": level,
+		"highest_level": highest_level,
+		"music": music_on,
 	}
 	if not won and level == current_level and line_drawer.completed_pair_count() > 0:
 		var lines: Dictionary = {}
@@ -283,6 +317,8 @@ func _load_progress() -> void:
 		push_warning("Save file unreadable, starting fresh")
 		return
 	var data: Dictionary = json.data
+	var music_saved: Variant = data.get("music", true)
+	music_on = music_saved if music_saved is bool else true
 	var level: Variant = data.get("current_level")
 	if not (level is float or level is int):
 		push_warning("Save file has no level, starting fresh")
@@ -339,10 +375,14 @@ func _ball_at_screen(p: Vector2) -> bool:
 ## (rule 7). Uses the display safe area on phones, or fake_safe_top in tests.
 func apply_safe_area() -> void:
 	var dy: float = maxf(0.0, safe_top_inset() - TOP_ROW_CLEAR)
-	# Dots sit between the MWM Play home corner (top-left 232 px) and restart.
+	# Dots sit between the MWM Play home corner (top-left 232 px) and restart,
+	# or between that corner and the music switch when the switch shows.
+	var vw: float = get_viewport().get_visible_rect().size.x
+	var right_edge: float = vw - RESTART_HIT - (MUSIC_HIT if music_button.visible else 0.0)
+	var dots_x: float = (HOME_CORNER + right_edge) * 0.5 - vw * 0.5
 	level_dots.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	level_dots.offset_left = -300
-	level_dots.offset_right = 300
+	level_dots.offset_left = dots_x - 300
+	level_dots.offset_right = dots_x + 300
 	level_dots.offset_top = 64 + dy
 	level_dots.offset_bottom = 144 + dy
 	level_dots.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -355,6 +395,15 @@ func apply_safe_area() -> void:
 	reset_button.disc_radius = 68.0
 	reset_button.disc_center = Vector2(RESTART_HIT - 104.0, 104.0 + dy)
 	reset_button.queue_redraw()
+
+	music_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	music_button.offset_left = -RESTART_HIT - MUSIC_HIT
+	music_button.offset_right = -RESTART_HIT
+	music_button.offset_top = 0
+	music_button.offset_bottom = RESTART_HIT + dy
+	music_button.disc_radius = 60.0
+	music_button.disc_center = Vector2(MUSIC_HIT - 88.0, 104.0 + dy)
+	music_button.queue_redraw()
 
 
 ## Depth of the top screen cutout in viewport px (0 on desktop and on phones
